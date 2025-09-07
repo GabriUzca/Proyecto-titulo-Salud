@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Componente de campo de entrada reutilizable
  * Maneja diferentes tipos de input con estilos consistentes

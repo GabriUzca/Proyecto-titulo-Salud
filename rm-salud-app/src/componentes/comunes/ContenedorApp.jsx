@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * Componente contenedor principal de la aplicación
  * Proporciona el marco visual y la estructura base para todas las páginas

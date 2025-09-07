@@ -1,3 +1,4 @@
+import React from 'react';
 import ContenedorApp from '../comunes/ContenedorApp';
 import NavegacionInferior from '../comunes/NavegacionInferior';
 

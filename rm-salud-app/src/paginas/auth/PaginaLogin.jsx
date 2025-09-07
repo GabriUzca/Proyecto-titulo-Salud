@@ -1,3 +1,5 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import BotonAccion from '../../componentes/comunes/BotonAccion';
 import CampoEntrada from '../../componentes/comunes/CampoEntrada';
 
@@ -5,7 +7,9 @@ import CampoEntrada from '../../componentes/comunes/CampoEntrada';
  * Página de inicio de sesión
  * Permite a los usuarios autenticarse en la aplicación
  */
-const PaginaLogin = ({ alNavegar, alIniciarSesion }) => {
+const PaginaLogin = ({ alIniciarSesion }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-8 flex flex-col h-full">
       {/* Encabezado de bienvenida */}
@@ -58,7 +62,7 @@ const PaginaLogin = ({ alNavegar, alIniciarSesion }) => {
         <p className="text-gray-600">
           ¿No tienes una cuenta? {' '}
           <button 
-            onClick={() => alNavegar('registro')} 
+            onClick={() => navigate('/registro')} 
             className="font-bold text-teal-600 hover:underline"
           >
             Regístrate

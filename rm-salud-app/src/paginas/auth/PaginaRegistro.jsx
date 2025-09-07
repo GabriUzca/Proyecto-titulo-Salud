@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import BotonAccion from '../../componentes/comunes/BotonAccion';
 import CampoEntrada from '../../componentes/comunes/CampoEntrada';
 
@@ -5,7 +6,9 @@ import CampoEntrada from '../../componentes/comunes/CampoEntrada';
  * Página de registro de nuevos usuarios
  * Permite crear una cuenta nueva en la aplicación
  */
-const PaginaRegistro = ({ alNavegar, alRegistrarse }) => {
+const PaginaRegistro = ({ alRegistrarse }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="p-8 flex flex-col h-full bg-white">
       {/* Encabezado */}
@@ -60,7 +63,7 @@ const PaginaRegistro = ({ alNavegar, alRegistrarse }) => {
         <p className="text-gray-600">
           ¿Ya tienes una cuenta? {' '}
           <button 
-            onClick={() => alNavegar('login')} 
+            onClick={() => navigate('/login')} 
             className="font-bold text-teal-600 hover:underline"
           >
             Iniciar sesión

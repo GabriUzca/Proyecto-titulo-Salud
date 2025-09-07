@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import LayoutPrincipal from './componentes/layout/LayoutPrincipal';
 import PaginaLogin from './paginas/auth/PaginaLogin';
@@ -6,105 +7,57 @@ import PaginaRegistro from './paginas/auth/PaginaRegistro';
 import PaginaInicio from './paginas/PaginaInicio';
 import PaginaOfertas from './paginas/PaginaOfertas';
 
-/**
- * Componente principal de la aplicación
- * Maneja la navegación entre páginas y el estado de autenticación
- */
+// Un componente para proteger rutas
+const RutasProtegidas = ({ estaLogueado }) => {
+  if (!estaLogueado) {
+    // Si no está logueado, lo redirige al login
+    return <Navigate to="/login" replace />;
+  }
+  // Si está logueado, muestra el contenido de la ruta (Inicio, Ofertas, etc.)
+  return <Outlet />;
+};
+
 function App() {
-  const [paginaActual, setPaginaActual] = useState('login');
-  const { estaLogueado, iniciarSesion, registrarse, cerrarSesion } = useAuth();
+  const { estaLogueado, iniciarSesion, registrarse } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  /**
-   * Maneja la navegación entre páginas
-   * @param {string} paginaDestino - Nombre de la página a la que navegar
-   */
-  const manejarNavegacion = (paginaDestino) => {
-    setPaginaActual(paginaDestino);
-  };
+  // Obtenemos el nombre de la página actual a partir de la URL
+  const paginaActual = location.pathname.replace('/', '') || 'inicio';
 
-  /**
-   * Maneja el proceso de inicio de sesión
-   */
   const manejarInicioSesion = () => {
     iniciarSesion();
-    setPaginaActual('inicio');
+    navigate('/inicio'); // Navega a la página de inicio
   };
   
-  /**
-   * Maneja el proceso de registro
-   */
   const manejarRegistro = () => {
     registrarse();
-    setPaginaActual('inicio');
-  };
-
-  /**
-   * Renderiza la página actual basada en el estado de autenticación
-   */
-  const renderizarPagina = () => {
-    // Si el usuario no está logueado, mostrar páginas de autenticación
-    if (!estaLogueado) {
-      switch (paginaActual) {
-        case 'login':
-          return (
-            <PaginaLogin 
-              alNavegar={manejarNavegacion} 
-              alIniciarSesion={manejarInicioSesion} 
-            />
-          );
-        case 'registro':
-          return (
-            <PaginaRegistro 
-              alNavegar={manejarNavegacion} 
-              alRegistrarse={manejarRegistro} 
-            />
-          );
-        default:
-          return (
-            <PaginaLogin 
-              alNavegar={manejarNavegacion} 
-              alIniciarSesion={manejarInicioSesion} 
-            />
-          );
-      }
-    }
-
-    // Si el usuario está logueado, mostrar páginas principales
-    switch (paginaActual) {
-      case 'inicio':
-        return <PaginaInicio />;
-      case 'ofertas':
-        return <PaginaOfertas />;
-      case 'estadisticas':
-        return (
-          <div className="p-4 pb-24">
-            <h2 className="text-2xl font-bold">Estadísticas - Próximamente</h2>
-            <p className="text-gray-600 mt-2">
-              Esta sección mostrará gráficos detallados de tu progreso.
-            </p>
-          </div>
-        );
-      case 'perfil':
-        return (
-          <div className="p-4 pb-24">
-            <h2 className="text-2xl font-bold">Perfil - Próximamente</h2>
-            <p className="text-gray-600 mt-2">
-              Aquí podrás configurar tu información personal y preferencias.
-            </p>
-          </div>
-        );
-      default:
-        return <PaginaInicio />;
-    }
+    navigate('/inicio'); // Navega a la página de inicio
   };
 
   return (
     <LayoutPrincipal 
       mostrarNavInferior={estaLogueado} 
-      paginaActual={paginaActual} 
-      alNavegar={manejarNavegacion}
+      paginaActual={paginaActual}
+      alNavegar={(ruta) => navigate(`/${ruta}`)} // Navega usando el router
     >
-      {renderizarPagina()}
+      <Routes>
+        {/* Rutas Públicas */}
+        <Route path="/login" element={<PaginaLogin alIniciarSesion={manejarInicioSesion} />} />
+        <Route path="/registro" element={<PaginaRegistro alRegistrarse={manejarRegistro} />} />
+
+        {/* Rutas Protegidas */}
+        <Route element={<RutasProtegidas estaLogueado={estaLogueado} />}>
+          <Route path="/" element={<Navigate to="/inicio" />} />
+          <Route path="/inicio" element={<PaginaInicio />} />
+          <Route path="/ofertas" element={<PaginaOfertas />} />
+          <Route path="/estadisticas" element={<div className="p-4">Estadísticas - Próximamente</div>} />
+          <Route path="/perfil" element={<div className="p-4">Perfil - Próximamente</div>} />
+        </Route>
+        
+        {/* Ruta para cualquier otra URL no definida */}
+        <Route path="*" element={<Navigate to={estaLogueado ? "/inicio" : "/login"} />} />
+      </Routes>
     </LayoutPrincipal>
   );
 }

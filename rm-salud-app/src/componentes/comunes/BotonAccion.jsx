@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Componente de botón reutilizable con estilos consistentes
  * Usado en formularios y acciones principales de la aplicación
