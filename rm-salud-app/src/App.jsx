@@ -5,8 +5,7 @@ import { useAuth } from './hooks/useAuth';
 // Páginas de Auth
 import PaginaLogin from './paginas/auth/PaginaLogin.jsx';
 import PaginaRegistro from './paginas/auth/PaginaRegistro.jsx';
-
-import PaginaInicio from './paginas/inicio/PaginaInicio.jsx';
+import PaginaInicio from './paginas/PaginaInicio.jsx';
 
 /** Layout protegido: muestra children solo si hay sesión */
 const ProtectedRoute = ({ isAuth, loading }) => {
