@@ -1,44 +1,52 @@
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { authApi } from '../servicios/api';
 
-/**
- * Hook personalizado para manejar la autenticación
- * Gestiona el estado de login/logout y datos del usuario
- */
 export const useAuth = () => {
   const [estaLogueado, setEstaLogueado] = useState(false);
   const [usuario, setUsuario] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
 
-  /**
-   * Función para iniciar sesión
-   * @param {Object} datosUsuario - Datos del usuario (opcional)
-   */
-  const iniciarSesion = (datosUsuario) => {
-    setEstaLogueado(true);
-    setUsuario(datosUsuario || { nombre: 'Gabriel' });
+  const cargarSesion = useCallback(async () => {
+    try {
+      const access = localStorage.getItem('access');
+      if (!access) return;
+      const { data } = await authApi.me();
+      setUsuario(data);
+      setEstaLogueado(true);
+    } catch {
+      setEstaLogueado(false);
+      setUsuario(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await cargarSesion();
+      setCargando(false);
+    })();
+  }, [cargarSesion]);
+
+  const iniciarSesion = async ({ emailOrUsername, password }) => {
+    setError(null);
+    const { data } = await authApi.login(emailOrUsername, password);
+    localStorage.setItem('access', data.access);
+    localStorage.setItem('refresh', data.refresh);
+    await cargarSesion();
   };
 
-  /**
-   * Función para registrar un nuevo usuario
-   * @param {Object} datosUsuario - Datos del usuario (opcional)
-   */
-  const registrarse = (datosUsuario) => {
-    setEstaLogueado(true);
-    setUsuario(datosUsuario || { nombre: 'Gabriel' });
+  const registrarse = async ({ username, email, password }) => {
+    setError(null);
+    await authApi.register({ username, email, password });
+    await iniciarSesion({ emailOrUsername: username, password });
   };
 
-  /**
-   * Función para cerrar sesión
-   */
   const cerrarSesion = () => {
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
     setEstaLogueado(false);
     setUsuario(null);
   };
 
-  return {
-    estaLogueado,
-    usuario,
-    iniciarSesion,
-    registrarse,
-    cerrarSesion
-  };
+  return { estaLogueado, usuario, cargando, error, iniciarSesion, registrarse, cerrarSesion };
 };

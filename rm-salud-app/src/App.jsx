@@ -1,64 +1,57 @@
 import React from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
-import LayoutPrincipal from './componentes/layout/LayoutPrincipal';
-import PaginaLogin from './paginas/auth/PaginaLogin';
-import PaginaRegistro from './paginas/auth/PaginaRegistro';
-import PaginaInicio from './paginas/PaginaInicio';
-import PaginaOfertas from './paginas/PaginaOfertas';
 
-// Un componente para proteger rutas
-const RutasProtegidas = ({ estaLogueado }) => {
-  if (!estaLogueado) {
-    // Si no está logueado, lo redirige al login
-    return <Navigate to="/login" replace />;
+// Páginas de Auth
+import PaginaLogin from './paginas/auth/PaginaLogin.jsx';
+import PaginaRegistro from './paginas/auth/PaginaRegistro.jsx';
+
+import PaginaInicio from './paginas/inicio/PaginaInicio.jsx';
+
+/** Layout protegido: muestra children solo si hay sesión */
+const ProtectedRoute = ({ isAuth, loading }) => {
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="p-8">Cargando…</div>;
   }
-  // Si está logueado, muestra el contenido de la ruta (Inicio, Ofertas, etc.)
+
+  if (!isAuth) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
   return <Outlet />;
 };
 
 function App() {
-  const { estaLogueado, iniciarSesion, registrarse } = useAuth();
+  const { estaLogueado, cargando, iniciarSesion, registrarse } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Obtenemos el nombre de la página actual a partir de la URL
-  const paginaActual = location.pathname.replace('/', '') || 'inicio';
-
-  const manejarInicioSesion = () => {
-    iniciarSesion();
-    navigate('/inicio'); // Navega a la página de inicio
+  const manejarInicioSesion = async (credenciales) => {
+    await iniciarSesion(credenciales);
+    navigate('/inicio');
   };
-  
-  const manejarRegistro = () => {
-    registrarse();
-    navigate('/inicio'); // Navega a la página de inicio
+
+  const manejarRegistro = async (datos) => {
+    await registrarse(datos);
+    navigate('/inicio');
   };
 
   return (
-    <LayoutPrincipal 
-      mostrarNavInferior={estaLogueado} 
-      paginaActual={paginaActual}
-      alNavegar={(ruta) => navigate(`/${ruta}`)} // Navega usando el router
-    >
-      <Routes>
-        {/* Rutas Públicas */}
-        <Route path="/login" element={<PaginaLogin alIniciarSesion={manejarInicioSesion} />} />
-        <Route path="/registro" element={<PaginaRegistro alRegistrarse={manejarRegistro} />} />
+    <Routes>
+      {/* Rutas públicas */}
+      <Route path="/login" element={<PaginaLogin alIniciarSesion={manejarInicioSesion} />} />
+      <Route path="/registro" element={<PaginaRegistro alRegistrarse={manejarRegistro} />} />
 
-        {/* Rutas Protegidas */}
-        <Route element={<RutasProtegidas estaLogueado={estaLogueado} />}>
-          <Route path="/" element={<Navigate to="/inicio" />} />
-          <Route path="/inicio" element={<PaginaInicio />} />
-          <Route path="/ofertas" element={<PaginaOfertas />} />
-          <Route path="/estadisticas" element={<div className="p-4">Estadísticas - Próximamente</div>} />
-          <Route path="/perfil" element={<div className="p-4">Perfil - Próximamente</div>} />
-        </Route>
-        
-        {/* Ruta para cualquier otra URL no definida */}
-        <Route path="*" element={<Navigate to={estaLogueado ? "/inicio" : "/login"} />} />
-      </Routes>
-    </LayoutPrincipal>
+      {/* Rutas protegidas */}
+      <Route element={<ProtectedRoute isAuth={estaLogueado} loading={cargando} />}>
+        <Route path="/inicio" element={<PaginaInicio />} />
+        <Route path="/" element={<Navigate to="/inicio" replace />} />
+      </Route>
+
+      {/* Cualquier otra ruta → redirige */}
+      <Route path="*" element={<Navigate to="/inicio" replace />} />
+    </Routes>
   );
 }
 
