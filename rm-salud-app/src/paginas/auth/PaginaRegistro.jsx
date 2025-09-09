@@ -12,20 +12,27 @@ const PaginaRegistro = ({ alRegistrarse }) => {
   const [error, setError]       = useState(null);
   const [exito, setExito]       = useState(null);
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    if (password !== confirm) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-    try {
-      await alRegistrarse({ username, email, password });
-      setExito('¡Registro exitoso! Redirigiendo…'); // 👈 nuevo
-      setTimeout(() => navigate('/inicio'), 800);   // pequeño delay
-    } catch (err) {
+const onSubmit = async (e) => {
+  e.preventDefault();
+  if (password !== confirm) {
+    setError('Las contraseñas no coinciden');
+    return;
+  }
+  try {
+    await alRegistrarse({ username, email, password });
+    setExito('¡Registro exitoso! Redirigiendo…');
+    setTimeout(() => navigate('/inicio'), 800);
+  } catch (err) {
+    if (err.response?.data?.password) {
+      setError(err.response.data.password[0]); // muestra: "Asegúrate de que este campo tenga al menos 8 caracteres."
+    } else if (err.response?.data?.email) {
+      setError(err.response.data.email[0]); // ej: "Este correo ya está registrado."
+    } else {
       setError('Error al registrar usuario');
     }
-  };
+  }
+};
+
 
   return (
     <div className="p-8 flex flex-col h-full bg-white">
