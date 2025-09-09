@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite' // <-- Importa el plugin
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(), // <-- Añade el plugin aquí
-  ],
-})
+  plugins: [react(), tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './setupTests.js',
+  },
+});
