@@ -10,6 +10,7 @@ const PaginaRegistro = ({ alRegistrarse }) => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
   const [error, setError]       = useState(null);
+  const [exito, setExito]       = useState(null);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +20,8 @@ const PaginaRegistro = ({ alRegistrarse }) => {
     }
     try {
       await alRegistrarse({ username, email, password });
-      navigate('/inicio');
+      setExito('¡Registro exitoso! Redirigiendo…'); // 👈 nuevo
+      setTimeout(() => navigate('/inicio'), 800);   // pequeño delay
     } catch (err) {
       setError('Error al registrar usuario');
     }
@@ -61,10 +63,11 @@ const PaginaRegistro = ({ alRegistrarse }) => {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="mt-6">
-          <BotonAccion>Crear cuenta</BotonAccion>
-        </div>
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {exito && <p className="text-green-600 text-sm">{exito}</p>} {/* 👈 nuevo */}
+      <div className="mt-6">
+        <BotonAccion>Crear cuenta</BotonAccion>
+      </div>
       </form>
 
       <div className="mt-auto text-center py-4">

@@ -3,6 +3,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth.models import User
 
+
 class AuthFlowTests(APITestCase):
     def setUp(self):
         self.base = "/api/auth"
@@ -38,3 +39,28 @@ class AuthFlowTests(APITestCase):
         User.objects.create_user(username="failuser", password="ok12345")
         r = self.client.post(self.login_url, {"username": "failuser", "password": "WRONG"}, format="json")
         self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    class RegisterValidationTests(APITestCase):
+        def setUp(self):
+            self.register_url = "/api/auth/register"
+
+        def test_password_min_length(self):
+            # 7 chars → debe fallar
+            r = self.client.post(self.register_url, {
+                "username": "short",
+                "email": "s@x.com",
+                "password": "1234567"
+            }, format="json")
+            self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("password", r.data)
+
+        def test_email_unique(self):
+            User.objects.create_user(username="u1", email="dup@x.com", password="secret123")
+            # mismo email con distinta capitalización → debe fallar
+            r = self.client.post(self.register_url, {
+                "username": "u2",
+                "email": "Dup@x.com",
+                "password": "secret123"
+            }, format="json")
+            self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("email", r.data)
