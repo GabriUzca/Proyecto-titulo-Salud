@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Fondo verde azulado -->
+  <rect width="100" height="100" fill="#2D9B95"/>
+
+  <!-- Corazón blanco -->
+  <path d="M50 75 C35 65, 20 55, 20 40 C20 30, 27 23, 35 23 C42 23, 47 27, 50 32 C53 27, 58 23, 65 23 C73 23, 80 30, 80 40 C80 55, 65 65, 50 75 Z" fill="white"/>
+
+  <!-- Línea de electrocardiograma -->
+  <path d="M25 45 L35 45 L38 35 L42 55 L45 45 L48 45 L52 35 L55 45 L75 45"
+        stroke="#2D9B95"
+        stroke-width="3"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

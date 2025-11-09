@@ -1,0 +1,9 @@
+{
+  "name": "Salud RM",
+  "short_name": "SaludRM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ca678",
+  "icons": []
+}
