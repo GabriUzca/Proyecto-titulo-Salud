@@ -31,32 +31,7 @@ class EventRequestCreateView(generics.CreateAPIView):
         """
         serializer.save(estado='pendiente')
 
-class EventRequestPublicListView(generics.ListAPIView):
 
-    """
-
-    Vista pública para listar eventos aprobados
-    """
-
-    serializer_class = EventRequestSerializer
-
-    permission_classes = [permissions.AllowAny]
-
- 
-
-    def get_queryset(self):
-
-        """
-
-        Retorna solo eventos aprobados, ordenados por fecha de inicio
-
-        """
-
-        return EventRequest.objects.filter(estado='aprobada').order_by('fecha_inicio')
-
- 
-
- 
 class EventRequestAdminViewSet(viewsets.ModelViewSet):
     """
     ViewSet para administración de solicitudes de eventos

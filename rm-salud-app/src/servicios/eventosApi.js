@@ -23,21 +23,7 @@ export const crearSolicitudEvento = async (eventData) => {
   const response = await publicApi.post("/api/eventos/solicitar/", eventData);
   return response.data;
 };
-/**
 
- * Obtener lista de eventos aprobados (sin autenticación requerida)
-
- * @returns {Promise} Respuesta con lista de eventos aprobados
-
- */
-
-export const obtenerEventosAprobados = async () => {
-
-  const response = await publicApi.get("/api/eventos/aprobados/");
-
-  return response.data;
-
-};
 // ────────────────────────────────────────────────────────────────────────────
 // Endpoints de administración (requieren autenticación y permisos de staff)
 // ────────────────────────────────────────────────────────────────────────────

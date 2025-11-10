@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { buscarEventosPorUbicacion } from "../servicios/ticketmasterApi";
-import { obtenerEventosAprobados } from "../servicios/eventosApi";
 
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
@@ -26,22 +25,6 @@ const EventIcon = L.icon({
       <path fill="#E31837" d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 18 9 18s9-11.25 9-18c0-4.97-4.03-9-9-9z"/>
       <circle fill="white" cx="12" cy="9" r="4"/>
       <text x="12" y="11" text-anchor="middle" font-size="8" font-family="Arial" fill="#E31837" font-weight="bold">T</text>
-    </svg>
-  `),
-  shadowUrl,
-  iconSize: [30, 45],
-  iconAnchor: [15, 45],
-  popupAnchor: [0, -45],
-  shadowSize: [41, 41],
-});
-
-// Icono personalizado para eventos aprobados de la comunidad
-const ApprovedEventIcon = L.icon({
-  iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="30" height="45">
-      <path fill="#28a745" d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 18 9 18s9-11.25 9-18c0-4.97-4.03-9-9-9z"/>
-      <circle fill="white" cx="12" cy="9" r="4"/>
-      <text x="12" y="11" text-anchor="middle" font-size="8" font-family="Arial" fill="#28a745" font-weight="bold">✓</text>
     </svg>
   `),
   shadowUrl,
@@ -132,7 +115,6 @@ function SearchHereButton({ onSearch, isLoading }) {
 const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, radioKm = 40, onEventosActualizados, onUbicacionActualizada }, ref) => {
   const [posUsuario, setPosUsuario] = useState(null);
   const [eventosTicketmaster, setEventosTicketmaster] = useState([]);
-  const [eventosAprobados, setEventosAprobados] = useState([]);
   const [cargandoEventos, setCargandoEventos] = useState(false);
   const [errorEventos, setErrorEventos] = useState(null);
   const mapControllerRef = useRef();
@@ -143,20 +125,6 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
       (p) => setPosUsuario({ lat: p.coords.latitude, lng: p.coords.longitude }),
       () => {}
     );
-  }, []);
-
-  // Cargar eventos aprobados de la comunidad
-  useEffect(() => {
-    const cargarEventosAprobados = async () => {
-      try {
-        const eventos = await obtenerEventosAprobados();
-        setEventosAprobados(eventos);
-      } catch (error) {
-        console.error('Error al cargar eventos aprobados:', error);
-      }
-    };
-
-    cargarEventosAprobados();
   }, []);
 
   // Función para cargar eventos por coordenadas
@@ -211,12 +179,10 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
 
   const puntos = useMemo(() => {
     const base = (recursos || []).filter(r => typeof r.lat === "number" && typeof r.lng === "number");
-    const eventosT = (eventosTicketmaster || []).filter(e => typeof e.lat === "number" && typeof e.lng === "number");
-    const eventosA = (eventosAprobados || []).filter(e => typeof e.latitud === "number" && typeof e.longitud === "number")
-      .map(e => ({ lat: parseFloat(e.latitud), lng: parseFloat(e.longitud) }));
-    const todos = [...base, ...eventosT, ...eventosA];
+    const eventos = (eventosTicketmaster || []).filter(e => typeof e.lat === "number" && typeof e.lng === "number");
+    const todos = [...base, ...eventos];
     return posUsuario ? [...todos, { lat: posUsuario.lat, lng: posUsuario.lng, __yo: true }] : todos;
-  }, [recursos, eventosTicketmaster, eventosAprobados, posUsuario]);
+  }, [recursos, eventosTicketmaster, posUsuario]);
 
   // Centro inicial: ubicación del usuario si existe, sino Santiago
   const center = posUsuario
@@ -239,8 +205,8 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
         }}>
           <span>
             {cargandoEventos && "🔄 Cargando eventos..."}
-            {!cargandoEventos && (eventosTicketmaster.length > 0 || recursos.length > 0 || eventosAprobados.length > 0) && `🎫 ${eventosTicketmaster.length + recursos.length + eventosAprobados.length} eventos encontrados`}
-            {!cargandoEventos && eventosTicketmaster.length === 0 && recursos.length === 0 && eventosAprobados.length === 0 && !errorEventos && "📍 No hay eventos cerca"}
+            {!cargandoEventos && (eventosTicketmaster.length > 0 || recursos.length > 0) && `🎫 ${eventosTicketmaster.length + recursos.length} eventos encontrados`}
+            {!cargandoEventos && eventosTicketmaster.length === 0 && recursos.length === 0 && !errorEventos && "📍 No hay eventos cerca"}
             {errorEventos && `⚠️ ${errorEventos}`}
           </span>
           {(eventosTicketmaster.length > 0 || recursos.length > 0) && (
@@ -307,70 +273,6 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
                           }}
                         >
                           Ver en Ticketmaster →
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            )
-          ))}
-
-          {/* Marcadores de eventos aprobados de la comunidad */}
-          {eventosAprobados?.map((evento, i) => (
-            (typeof evento.latitud === "number" && typeof evento.longitud === "number") && (
-              <Marker key={`evento-aprobado-${evento.id}-${i}`} position={[parseFloat(evento.latitud), parseFloat(evento.longitud)]} icon={ApprovedEventIcon}>
-                <Popup maxWidth={300}>
-                  <div style={{ minWidth: 200 }}>
-                    <strong style={{ fontSize: 16, color: "#28a745" }}>✓ {evento.nombre_evento}</strong><br />
-                    {evento.nombre_empresa && (
-                      <em style={{ fontSize: 12, color: "#6c757d" }}>Por: {evento.nombre_empresa}</em>
-                    )}
-                    <div style={{ marginTop: 8, fontSize: 13 }}>
-                      <strong>📍 Dirección:</strong> {evento.direccion}<br />
-                      {evento.ciudad && <><strong>🏙️ Ciudad:</strong> {evento.ciudad}<br /></>}
-                      <strong>📅 Fecha inicio:</strong> {new Date(evento.fecha_inicio).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}<br />
-                      {evento.fecha_fin && (
-                        <><strong>📅 Fecha fin:</strong> {new Date(evento.fecha_fin).toLocaleDateString('es-ES', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}<br /></>
-                      )}
-                      {evento.categoria && <><strong>🎭 Categoría:</strong> {evento.categoria}<br /></>}
-                      <strong>💰 Entrada:</strong> {evento.tipo_entrada === 'gratuito' ? 'Gratuita' : `${evento.precio ? `$${evento.precio}` : 'De pago'}`}<br />
-                      {evento.descripcion && (
-                        <div style={{ marginTop: 8, padding: 8, background: "#f8f9fa", borderRadius: 4 }}>
-                          <strong>📝 Descripción:</strong><br />
-                          <p style={{ margin: '4px 0', fontSize: 12 }}>{evento.descripcion}</p>
-                        </div>
-                      )}
-                      {evento.url_evento && (
-                        <a
-                          href={evento.url_evento}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: "inline-block",
-                            marginTop: 8,
-                            padding: "6px 12px",
-                            background: "#28a745",
-                            color: "white",
-                            textDecoration: "none",
-                            borderRadius: 4,
-                            fontSize: 12,
-                            fontWeight: "bold"
-                          }}
-                        >
-                          Más información →
                         </a>
                       )}
                     </div>
