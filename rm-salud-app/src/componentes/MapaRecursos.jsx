@@ -209,8 +209,17 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
   const puntos = useMemo(() => {
     const base = (recursos || []).filter(r => typeof r.lat === "number" && typeof r.lng === "number");
     const eventosTicket = (eventosTicketmaster || []).filter(e => typeof e.lat === "number" && typeof e.lng === "number");
-    const eventosLocal = (eventosAprobados || []).filter(e => typeof e.latitud === "number" && typeof e.longitud === "number");
-    const todos = [...base, ...eventosTicket, ...eventosLocal.map(e => ({ lat: e.latitud, lng: e.longitud }))];
+
+    // Convertir strings a números para eventos aprobados (compatible con backend)
+    const eventosLocal = (eventosAprobados || [])
+      .filter(e => e.latitud != null && e.longitud != null)
+      .map(e => ({
+        lat: typeof e.latitud === 'string' ? parseFloat(e.latitud) : e.latitud,
+        lng: typeof e.longitud === 'string' ? parseFloat(e.longitud) : e.longitud
+      }))
+      .filter(e => !isNaN(e.lat) && !isNaN(e.lng));
+
+    const todos = [...base, ...eventosTicket, ...eventosLocal];
     return posUsuario ? [...todos, { lat: posUsuario.lat, lng: posUsuario.lng, __yo: true }] : todos;
   }, [recursos, eventosTicketmaster, eventosAprobados, posUsuario]);
 
@@ -313,9 +322,13 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
           ))}
 
           {/* Marcadores de eventos aprobados locales */}
-          {eventosAprobados?.map((evento, i) => (
-            (typeof evento.latitud === "number" && typeof evento.longitud === "number") && (
-              <Marker key={`evento-aprobado-${evento.id}-${i}`} position={[evento.latitud, evento.longitud]} icon={EventoAprobadoIcon}>
+          {eventosAprobados?.map((evento, i) => {
+            // Convertir strings a números si es necesario (compatibilidad con backend)
+            const lat = typeof evento.latitud === 'string' ? parseFloat(evento.latitud) : evento.latitud;
+            const lng = typeof evento.longitud === 'string' ? parseFloat(evento.longitud) : evento.longitud;
+
+            return (lat && lng && !isNaN(lat) && !isNaN(lng)) && (
+              <Marker key={`evento-aprobado-${evento.id}-${i}`} position={[lat, lng]} icon={EventoAprobadoIcon}>
                 <Popup maxWidth={300}>
                   <div style={{ minWidth: 200 }}>
                     <strong style={{ fontSize: 16, color: "#28a745" }}>🎉 {evento.nombre_evento}</strong><br />
@@ -355,8 +368,8 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
                   </div>
                 </Popup>
               </Marker>
-            )
-          ))}
+            );
+          })}
 
           {/* Marcador de ubicación del usuario */}
           {posUsuario && (
