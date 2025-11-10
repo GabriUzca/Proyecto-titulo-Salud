@@ -1,11 +1,13 @@
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.utils import timezone
 from datetime import timedelta
 from math import radians, sin, cos, sqrt, atan2
 from .models import EventRequest
 from .serializers import EventRequestSerializer, EventRequestAdminSerializer
+from .ticketmaster_service import buscar_eventos_por_ubicacion
 
 
 class IsAdminUser(permissions.BasePermission):
@@ -251,3 +253,78 @@ class EventosAprobadosView(generics.ListAPIView):
                     continue
 
         return EventRequest.objects.filter(id__in=eventos_cercanos).order_by('fecha_inicio')
+
+
+class TicketmasterProxyView(APIView):
+    """
+    Vista pública para proxy de Ticketmaster API
+    Actúa como intermediario seguro para ocultar la API key del frontend
+
+    GET /api/eventos/ticketmaster/
+
+    Query params:
+    - lat: latitud del centro de búsqueda (requerido)
+    - lng: longitud del centro de búsqueda (requerido)
+    - radio: radio de búsqueda en kilómetros (default: 25)
+    - size: cantidad de eventos a retornar (default: 20, max: 50)
+    - categorias: categorías separadas por comas (ej: sports,music,arts)
+    - dias_futuros: días hacia el futuro para filtrar eventos (default: 90)
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        """
+        Proxy para buscar eventos de Ticketmaster
+        """
+        # Obtener parámetros de la request
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+
+        if not lat or not lng:
+            return Response(
+                {"error": "Parámetros 'lat' y 'lng' son requeridos"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            lat = float(lat)
+            lng = float(lng)
+            radio = int(request.query_params.get('radio', 25))
+            size = int(request.query_params.get('size', 20))
+            dias_futuros = int(request.query_params.get('dias_futuros', 90))
+
+            # Procesar categorías si se proporcionan
+            categorias_param = request.query_params.get('categorias', '')
+            categorias = [c.strip() for c in categorias_param.split(',') if c.strip()] if categorias_param else None
+
+        except (ValueError, TypeError) as e:
+            return Response(
+                {"error": f"Parámetros inválidos: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Llamar al servicio de Ticketmaster
+            eventos = buscar_eventos_por_ubicacion(
+                latitude=lat,
+                longitude=lng,
+                radius=radio,
+                size=size,
+                clasificaciones=categorias,
+                dias_futuros=dias_futuros
+            )
+
+            return Response(eventos, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            # Error de configuración (API key no configurada)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            # Otros errores (conexión, API, etc.)
+            return Response(
+                {"error": f"Error al obtener eventos de Ticketmaster: {str(e)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
