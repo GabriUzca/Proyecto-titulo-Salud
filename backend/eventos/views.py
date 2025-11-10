@@ -210,8 +210,6 @@ class EventosAprobadosView(generics.ListAPIView):
         # Parámetros de ubicación
         lat = self.request.query_params.get('lat')
         lng = self.request.query_params.get('lng')
-        radio = float(self.request.query_params.get('radio', 40))  # 40 km por defecto
-        dias_futuros = int(self.request.query_params.get('dias_futuros', 90))  # 90 días por defecto
 
         if not lat or not lng:
             return EventRequest.objects.none()
@@ -219,6 +217,8 @@ class EventosAprobadosView(generics.ListAPIView):
         try:
             lat = float(lat)
             lng = float(lng)
+            radio = float(self.request.query_params.get('radio', 40))
+            dias_futuros = int(self.request.query_params.get('dias_futuros', 90))
         except (ValueError, TypeError):
             return EventRequest.objects.none()
 
@@ -232,18 +232,22 @@ class EventosAprobadosView(generics.ListAPIView):
         # Incluir eventos que:
         # 1. Su fecha_inicio es futura (dentro del rango)
         # 2. O están en curso (fecha_inicio <= hoy y fecha_fin >= hoy o fecha_fin es None)
+        from django.db.models import Q
         queryset = queryset.filter(
             fecha_inicio__lte=fecha_limite
-        ).exclude(
-            fecha_fin__lt=fecha_actual  # Excluir eventos que ya terminaron
+        ).filter(
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fecha_actual)
         )
 
         # Filtrar por distancia
         eventos_cercanos = []
         for evento in queryset:
-            if evento.latitud and evento.longitud:
-                distancia = calcular_distancia(lat, lng, evento.latitud, evento.longitud)
-                if distancia <= radio:
-                    eventos_cercanos.append(evento.id)
+            if evento.latitud is not None and evento.longitud is not None:
+                try:
+                    distancia = calcular_distancia(lat, lng, float(evento.latitud), float(evento.longitud))
+                    if distancia <= radio:
+                        eventos_cercanos.append(evento.id)
+                except (ValueError, TypeError):
+                    continue
 
         return EventRequest.objects.filter(id__in=eventos_cercanos).order_by('fecha_inicio')
