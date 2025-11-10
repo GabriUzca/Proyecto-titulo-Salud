@@ -212,9 +212,24 @@ export default function PaginaInicio() {
 
   // Función para centrar el mapa en un evento cuando se hace clic en la lista
   const handleEventoClick = (item) => {
-    if (mapaRef.current && typeof item.lat === 'number' && typeof item.lng === 'number') {
-      // Centrar el mapa en la ubicación del evento
-      mapaRef.current.centerOnLocation(item.lat, item.lng);
+    if (!mapaRef.current) return;
+
+    // Obtener coordenadas (pueden ser lat/lng o latitud/longitud)
+    let lat, lng;
+
+    if (typeof item.lat === 'number' && typeof item.lng === 'number') {
+      // Recursos locales y eventos de Ticketmaster
+      lat = item.lat;
+      lng = item.lng;
+    } else if (item.latitud != null && item.longitud != null) {
+      // Eventos aprobados (pueden ser strings o números)
+      lat = typeof item.latitud === 'string' ? parseFloat(item.latitud) : item.latitud;
+      lng = typeof item.longitud === 'string' ? parseFloat(item.longitud) : item.longitud;
+    }
+
+    // Si tenemos coordenadas válidas, centrar el mapa
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      mapaRef.current.centerOnLocation(lat, lng);
 
       // Hacer scroll hacia el mapa
       if (mapaContainerRef.current) {
