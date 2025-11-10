@@ -47,6 +47,7 @@ export default function PaginaInicio() {
   const [food, setFood] = useState([]);
   const [recs, setRecs] = useState([]);
   const [eventosTicketmaster, setEventosTicketmaster] = useState([]);
+  const [eventosAprobados, setEventosAprobados] = useState([]);
   const [posUsuario, setPosUsuario] = useState(null);
   const [mostrarTodosEventos, setMostrarTodosEventos] = useState(false);
   const mapaRef = useRef();
@@ -168,27 +169,39 @@ export default function PaginaInicio() {
     });
   }, [recs, posUsuario]);
 
-  // Combinar recursos locales cercanos y eventos de Ticketmaster
+  // Callback para recibir eventos del mapa (separa Ticketmaster de aprobados)
+  const handleEventosActualizados = (eventos) => {
+    // Separar eventos por tipo
+    const eventosTicket = eventos.filter(e => e.esTicketmaster || e.url?.includes('ticketmaster'));
+    const eventosLocal = eventos.filter(e => !e.esTicketmaster && !e.url?.includes('ticketmaster'));
+
+    setEventosTicketmaster(eventosTicket);
+    setEventosAprobados(eventosLocal);
+  };
+
+  // Combinar recursos locales cercanos, eventos de Ticketmaster y eventos aprobados
   const recursosYEventos = useMemo(() => {
     if (mostrarTodosEventos) {
       // Mostrar todos: primero recursos cercanos, luego todos los eventos
-      return [...recursosCercanos, ...eventosTicketmaster];
+      return [...recursosCercanos, ...eventosTicketmaster, ...eventosAprobados];
     }
 
     // Vista compacta: intercalar 3 de cada uno
-    const eventosLimitados = eventosTicketmaster.slice(0, 3);
-    const recursosLimitados = recursosCercanos.slice(0, 3);
+    const eventosTicket = eventosTicketmaster.slice(0, 2);
+    const eventosLocal = eventosAprobados.slice(0, 2);
+    const recursosLimitados = recursosCercanos.slice(0, 2);
 
     const combinados = [];
-    const maxLength = Math.max(eventosLimitados.length, recursosLimitados.length);
+    const maxLength = Math.max(eventosTicket.length, eventosLocal.length, recursosLimitados.length);
 
     for (let i = 0; i < maxLength; i++) {
       if (recursosLimitados[i]) combinados.push(recursosLimitados[i]);
-      if (eventosLimitados[i]) combinados.push(eventosLimitados[i]);
+      if (eventosTicket[i]) combinados.push(eventosTicket[i]);
+      if (eventosLocal[i]) combinados.push(eventosLocal[i]);
     }
 
     return combinados.slice(0, 6); // Máximo 6 items
-  }, [recursosCercanos, eventosTicketmaster, mostrarTodosEventos]);
+  }, [recursosCercanos, eventosTicketmaster, eventosAprobados, mostrarTodosEventos]);
 
   const handleLogout = () => {
     if (confirm('¿Cerrar sesión?')) {
@@ -461,7 +474,7 @@ export default function PaginaInicio() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-xl text-gray-800">Recursos y Eventos</h3>
             <span className="text-xs text-teal-600 font-medium">
-              {recursosCercanos.length + eventosTicketmaster.length} cercanos
+              {recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length} cercanos
             </span>
           </div>
           <div ref={mapaContainerRef} className="rounded-xl overflow-hidden mb-3">
@@ -469,7 +482,7 @@ export default function PaginaInicio() {
               ref={mapaRef}
               recursos={recursosCercanos}
               alto={220}
-              onEventosActualizados={setEventosTicketmaster}
+              onEventosActualizados={handleEventosActualizados}
               onUbicacionActualizada={setPosUsuario}
             />
           </div>
@@ -509,8 +522,49 @@ export default function PaginaInicio() {
                     </div>
                   </div>
                 </li>
+              ) : item.nombre_evento ? (
+                // Evento aprobado local
+                <li
+                  key={`evt-${item.id}`}
+                  onClick={() => handleEventoClick(item)}
+                  className="flex items-start p-3 hover:bg-green-50 rounded-lg transition-colors border-l-4 border-green-500 cursor-pointer"
+                >
+                  <span className="text-2xl mr-2">🎉</span>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <p className="font-semibold text-gray-800 text-sm flex-1">{item.nombre_evento}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
+                        item.categoria === 'deportivo' ? 'bg-blue-100 text-blue-700' :
+                        item.categoria === 'cultural' ? 'bg-purple-100 text-purple-700' :
+                        item.categoria === 'salud' ? 'bg-pink-100 text-pink-700' :
+                        item.categoria === 'recreativo' ? 'bg-yellow-100 text-yellow-700' :
+                        item.categoria === 'educativo' ? 'bg-indigo-100 text-indigo-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {item.categoria === 'deportivo' ? '🏃 Deportivo' :
+                         item.categoria === 'cultural' ? '🎭 Cultural' :
+                         item.categoria === 'salud' ? '❤️ Salud' :
+                         item.categoria === 'recreativo' ? '🎪 Recreativo' :
+                         item.categoria === 'educativo' ? '📚 Educativo' :
+                         '📋 Otro'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1">
+                      📅 {new Date(item.fecha_inicio).toLocaleDateString('es-CL')}
+                    </p>
+                    <p className="text-xs text-gray-500">📍 {item.ciudad}</p>
+                    <div className="flex items-center mt-1 gap-2">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">
+                        Evento Local
+                      </span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        {item.tipo_entrada === 'gratuito' ? '💰 Gratis' : '💵 Pago'}
+                      </span>
+                    </div>
+                  </div>
+                </li>
               ) : (
-                // Recurso local
+                // Recurso local (ciclovía, parque, etc.)
                 <li
                   key={`rec-${i}`}
                   onClick={() => handleEventoClick(item)}
@@ -532,7 +586,7 @@ export default function PaginaInicio() {
           </ul>
 
           {/* Botón para expandir/colapsar */}
-          {(recursosCercanos.length + eventosTicketmaster.length > 6) && (
+          {(recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length > 6) && (
             <div className="mt-3 text-center">
               <button
                 onClick={() => setMostrarTodosEventos(!mostrarTodosEventos)}
