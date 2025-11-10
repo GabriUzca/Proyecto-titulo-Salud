@@ -326,7 +326,7 @@ export default function PaginaInicio() {
         
         {usuario?.is_staff && (
           <button 
-            onClick={() => navigate('/admin/usuarios')}
+            onClick={() => navigate('/admin/menu')}
             className="bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             👑 Admin

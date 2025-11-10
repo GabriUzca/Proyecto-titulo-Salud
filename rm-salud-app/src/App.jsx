@@ -21,6 +21,7 @@ import MapaRecursos from './componentes/MapaRecursos';
 import AdminUsuarios from './paginas/AdminUsuarios';
 import EditarUsuario from './paginas/EditarUsuario';
 import AdminEventos from './paginas/AdminEventos';
+import PaginaAdminMenu from './paginas/PaginaAdminMenu';
 
 // Event request page (public)
 import SolicitarEvento from './paginas/SolicitarEvento';
@@ -246,6 +247,12 @@ export default function App() {
       </Route>
       
       {/* Admin routes */}
+      <Route path="/admin/menu" element={
+        <ProtectedRoute requireAdmin={true}>
+          <PaginaAdminMenu />
+        </ProtectedRoute>
+      } />
+
       <Route path="/admin/usuarios" element={
         <ProtectedRoute requireAdmin={true}>
           <AdminUsuarios />
