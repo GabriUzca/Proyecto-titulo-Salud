@@ -520,10 +520,10 @@ export default function PaginaInicio() {
                         item.categoria === 'Arts & Theatre' ? 'bg-purple-100 text-purple-700' :
                         'bg-orange-100 text-orange-700'
                       }`}>
-                        {item.categoria === 'Sports' ? '🏃 Sports' :
-                         item.categoria === 'Music' ? '🎵 Music' :
-                         item.categoria === 'Arts & Theatre' ? '🎭 Arts' :
-                         '🎪 Community'}
+                        {item.categoria === 'Sports' ? '🏃 Deportes' :
+                         item.categoria === 'Music' ? '🎵 Música' :
+                         item.categoria === 'Arts & Theatre' ? '🎭 Arte y Teatro' :
+                         '🎪 Eventos'}
                       </span>
                     </div>
                     <p className="text-xs text-gray-600 mb-1">
