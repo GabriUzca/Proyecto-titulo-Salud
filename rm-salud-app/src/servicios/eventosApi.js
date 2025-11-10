@@ -24,6 +24,31 @@ export const crearSolicitudEvento = async (eventData) => {
   return response.data;
 };
 
+/**
+ * Buscar eventos aprobados por ubicación geográfica
+ * @param {number} lat - Latitud del centro de búsqueda
+ * @param {number} lng - Longitud del centro de búsqueda
+ * @param {number} radio - Radio de búsqueda en kilómetros (default: 40)
+ * @param {number} diasFuturos - Días hacia el futuro para filtrar (default: 90)
+ * @returns {Promise} Respuesta con lista de eventos aprobados cercanos
+ */
+export const buscarEventosAprobados = async (
+  lat,
+  lng,
+  radio = 40,
+  diasFuturos = 90
+) => {
+  const response = await publicApi.get("/api/eventos/aprobados/", {
+    params: {
+      lat,
+      lng,
+      radio,
+      dias_futuros: diasFuturos,
+    },
+  });
+  return response.data;
+};
+
 // ────────────────────────────────────────────────────────────────────────────
 // Endpoints de administración (requieren autenticación y permisos de staff)
 // ────────────────────────────────────────────────────────────────────────────
