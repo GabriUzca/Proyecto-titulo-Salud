@@ -384,7 +384,7 @@ export default function EditarUsuario() {
                       <div>
                         <p className="font-semibold text-gray-800">{actividad.tipo}</p>
                         <p className="text-sm text-gray-600">
-                          {actividad.duracion} min • {actividad.calorias_quemadas} cal
+                          {actividad.duracion_min} min • {actividad.calorias} cal
                         </p>
                       </div>
                       <p className="text-xs text-gray-500">
@@ -424,7 +424,7 @@ export default function EditarUsuario() {
                       <div>
                         <p className="font-semibold text-gray-800">{comida.nombre}</p>
                         <p className="text-sm text-gray-600">
-                          {comida.tipo_comida} • {comida.calorias} cal
+                          {comida.horario} • {comida.calorias} cal
                         </p>
                       </div>
                       <p className="text-xs text-gray-500">

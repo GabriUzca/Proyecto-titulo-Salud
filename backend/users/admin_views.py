@@ -160,8 +160,8 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         comidas = user.comidas.all().order_by('-fecha')
 
         # Serializar comidas
-        from alimentacion.serializers import AlimentacionSerializer
-        serializer = AlimentacionSerializer(comidas, many=True)
+        from alimentacion.serializers import ComidaSerializer
+        serializer = ComidaSerializer(comidas, many=True)
 
         return Response({
             "count": comidas.count(),
