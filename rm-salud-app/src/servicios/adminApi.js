@@ -8,5 +8,7 @@ export const adminApi = {
   updateUserInfo: (id, data) => api.patch(`/api/admin/users/${id}/update_basic_info/`, data),
   getStatistics: () => api.get("/api/admin/users/statistics/"),
   updateUser: (id, data) => api.patch(`/api/admin/users/${id}/`, data),
-  deleteUser: (id) => api.delete(`/api/admin/users/${id}/`)
+  deleteUser: (id) => api.delete(`/api/admin/users/${id}/`),
+  getUserActivities: (id) => api.get(`/api/admin/users/${id}/actividades/`),
+  getUserMeals: (id) => api.get(`/api/admin/users/${id}/comidas/`)
 };
