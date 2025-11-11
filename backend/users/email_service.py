@@ -171,9 +171,6 @@ def enviar_email_bienvenida(user):
                     <strong>¿Necesitas ayuda?</strong><br>
                     Estamos aquí para apoyarte en tu viaje de salud.
                 </p>
-                <p style="margin-top: 20px;">
-                    🤖 Generado con <a href="https://claude.com/claude-code" style="color: #14b8a6;">Claude Code</a>
-                </p>
             </div>
         </div>
     </body>
@@ -213,7 +210,8 @@ Comienza ahora: {frontend_url}/login
 
 ¿Necesitas ayuda? Estamos aquí para apoyarte en tu viaje de salud.
 
-🤖 Generado con Claude Code (https://claude.com/claude-code)
+¡Saludos cordiales!
+El equipo de RM Salud
     """
 
     # Enviar email
