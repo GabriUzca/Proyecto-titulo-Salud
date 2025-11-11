@@ -17,11 +17,16 @@ def enviar_email_confirmacion_solicitud(solicitud):
     """
     asunto = f'📋 Solicitud Recibida - {solicitud.nombre_evento}'
 
+    # URL del frontend para consultar solicitud
+    frontend_url = os.getenv('FRONTEND_URL', 'https://proyecto-titulo-salud.vercel.app')
+    url_consulta = f'{frontend_url}/consultar-solicitud'
+
     contexto = {
         'nombre_contacto': solicitud.nombre_contacto,
         'nombre_evento': solicitud.nombre_evento,
         'codigo_seguimiento': solicitud.codigo_seguimiento,
         'fecha_inicio': solicitud.fecha_inicio.strftime('%d de %B de %Y a las %H:%M'),
+        'url_consulta': url_consulta,
     }
 
     # Template HTML
@@ -69,6 +74,15 @@ def enviar_email_confirmacion_solicitud(solicitud):
                     <li>Puedes consultar el estado en cualquier momento usando tu código</li>
                 </ul>
 
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{contexto['url_consulta']}" class="button">
+                        🔍 Consultar Estado de mi Solicitud
+                    </a>
+                    <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                        O copia este enlace: {contexto['url_consulta']}
+                    </p>
+                </div>
+
                 <div style="text-align: center; margin-top: 20px;">
                     <p><strong>¿Tienes dudas?</strong></p>
                     <p>Responde a este correo y te ayudaremos.</p>
@@ -98,6 +112,9 @@ Fecha del evento: {contexto['fecha_inicio']}
 - Nuestro equipo revisará tu solicitud en las próximas 24-48 horas
 - Te notificaremos por email cuando haya una respuesta
 - Puedes consultar el estado en cualquier momento usando tu código
+
+🔍 Consulta el estado de tu solicitud aquí:
+{contexto['url_consulta']}
 
 ¿Tienes dudas? Responde a este correo y te ayudaremos.
 

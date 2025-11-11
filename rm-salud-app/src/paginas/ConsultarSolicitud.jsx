@@ -69,43 +69,42 @@ const ConsultarSolicitud = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Consultar Estado de Solicitud
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Ingresa tu código de seguimiento para verificar el estado de tu solicitud de evento
-        </p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Consultar Estado de Solicitud
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Ingresa tu código de seguimiento para verificar el estado de tu solicitud de evento
+          </p>
 
-        {/* Formulario de búsqueda */}
-        <form onSubmit={handleConsultar} className="mb-8">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <CampoEntrada
-                etiqueta="Código de Seguimiento"
-                tipo="text"
-                nombre="codigo"
-                valor={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                placeholder="Ej: A3K7M9P2Q5W8"
-                requerido
-                maxLength={12}
-                className="uppercase"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                El código fue enviado a tu correo al crear la solicitud
-              </p>
+          {/* Formulario de búsqueda */}
+          <form onSubmit={handleConsultar} className="mb-8">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Código de Seguimiento
+                </label>
+                <CampoEntrada
+                  type="text"
+                  name="codigo"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                  placeholder="Ej: A3K7M9P2Q5W8"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  El código fue enviado a tu correo al crear la solicitud
+                </p>
+              </div>
+              <BotonAccion
+                type="submit"
+                disabled={!codigo.trim() || loading}
+              >
+                {loading ? 'Consultando...' : 'Consultar'}
+              </BotonAccion>
             </div>
-            <BotonAccion
-              tipo="submit"
-              loading={loading}
-              disabled={!codigo.trim() || loading}
-            >
-              Consultar
-            </BotonAccion>
-          </div>
-        </form>
+          </form>
 
         {/* Mensaje de error */}
         {error && (
@@ -248,13 +247,14 @@ const ConsultarSolicitud = () => {
           </div>
         )}
 
-        {/* Información adicional */}
-        <div className="mt-8 bg-gray-50 rounded-lg p-6">
-          <h3 className="font-semibold text-gray-700 mb-3">¿No tienes tu código?</h3>
-          <p className="text-sm text-gray-600">
-            El código de seguimiento fue enviado a tu correo electrónico al momento de crear la solicitud.
-            Revisa tu bandeja de entrada y carpeta de spam. Si no lo encuentras, puedes crear una nueva solicitud.
-          </p>
+          {/* Información adicional */}
+          <div className="mt-8 bg-gray-50 rounded-lg p-6">
+            <h3 className="font-semibold text-gray-700 mb-3">¿No tienes tu código?</h3>
+            <p className="text-sm text-gray-600">
+              El código de seguimiento fue enviado a tu correo electrónico al momento de crear la solicitud.
+              Revisa tu bandeja de entrada y carpeta de spam. Si no lo encuentras, puedes crear una nueva solicitud.
+            </p>
+          </div>
         </div>
       </div>
     </div>
