@@ -90,6 +90,16 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         UserProfile.objects.get_or_create(user=user)
+
+        # Enviar email de bienvenida si el usuario tiene email
+        if user.email:
+            try:
+                from .email_service import enviar_email_bienvenida
+                enviar_email_bienvenida(user)
+            except Exception as e:
+                # Log del error pero no fallar el registro
+                print(f"Error al enviar email de bienvenida: {e}")
+
         return user
 
 
