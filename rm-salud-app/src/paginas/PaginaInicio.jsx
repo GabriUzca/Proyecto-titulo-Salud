@@ -322,11 +322,25 @@ export default function PaginaInicio() {
             <button className="p-2 hover:bg-teal-400 rounded-full transition-colors">
               <IconoCampana className="h-6 w-6" />
             </button>
-            <button 
+            <button
               onClick={() => navigate('/perfil')}
-              className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:shadow-lg transition-shadow"
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:shadow-lg transition-shadow overflow-hidden"
             >
-              <IconoUsuario className="h-6 w-6 text-teal-600"/>
+              {usuario?.profile?.foto ? (
+                <img
+                  src={`${import.meta.env.VITE_API_URL}${usuario.profile.foto}`}
+                  alt="Perfil"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+              ) : null}
+              <IconoUsuario
+                className="h-6 w-6 text-teal-600"
+                style={{ display: usuario?.profile?.foto ? 'none' : 'block' }}
+              />
             </button>
           </div>
         </div>

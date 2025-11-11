@@ -15,6 +15,8 @@ export default function Perfil() {
     altura: ""
   });
   const [foto, setFoto] = useState(null);
+  const [fotoActual, setFotoActual] = useState(null); // URL de la foto actual del usuario
+  const [imagePreview, setImagePreview] = useState(null); // Preview de nueva imagen
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,12 +35,29 @@ export default function Perfil() {
           peso: data.profile?.peso ?? "",
           altura: data.profile?.altura ?? "",
         });
+        // Guardar la foto actual si existe
+        if (data.profile?.foto) {
+          setFotoActual(data.profile.foto);
+        }
       })
       .catch(() => setStatus("❌ Error al cargar perfil"))
       .finally(() => setLoading(false));
   }, []);
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFoto(file);
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -48,8 +67,16 @@ export default function Perfil() {
       const payload = { ...form };
       if (foto) payload.foto = foto;
       await perfilApi.updateMe(payload);
+
+      // Recargar datos del usuario para obtener la nueva foto
+      const { data } = await perfilApi.getMe();
+      if (data.profile?.foto) {
+        setFotoActual(data.profile.foto);
+      }
+
       setStatus("✅ Perfil actualizado");
       setFoto(null);
+      setImagePreview(null);
       setTimeout(() => setStatus(null), 3000);
     } catch {
       setStatus("❌ Error al actualizar");
@@ -104,12 +131,31 @@ export default function Perfil() {
         <div className="bg-white p-6 rounded-2xl shadow-md">
           {/* Avatar section */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-24 h-24 bg-teal-100 rounded-full flex items-center justify-center mb-3">
-              <IconoUsuario className="w-12 h-12 text-teal-600" />
+            <div className="w-24 h-24 bg-teal-100 rounded-full flex items-center justify-center mb-3 overflow-hidden">
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : fotoActual ? (
+                <img
+                  src={`${import.meta.env.VITE_API_URL}${fotoActual}`}
+                  alt="Foto de perfil"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div style={{ display: !imagePreview && !fotoActual ? 'flex' : 'none' }} className="w-full h-full items-center justify-center">
+                <IconoUsuario className="w-12 h-12 text-teal-600" />
+              </div>
             </div>
             <h3 className="text-xl font-bold text-gray-800">
-              {form.first_name || form.last_name 
-                ? `${form.first_name} ${form.last_name}`.trim() 
+              {form.first_name || form.last_name
+                ? `${form.first_name} ${form.last_name}`.trim()
                 : 'Usuario'}
             </h3>
           </div>
@@ -208,7 +254,7 @@ export default function Perfil() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setFoto(e.target.files?.[0] || null)}
+                onChange={handleImageChange}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
               />
               {foto && (
