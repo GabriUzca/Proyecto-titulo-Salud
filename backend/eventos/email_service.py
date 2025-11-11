@@ -8,6 +8,24 @@ from django.utils.html import strip_tags
 from django.conf import settings
 
 
+def formatear_fecha_espanol(fecha):
+    """
+    Formatea una fecha en español
+    """
+    meses = {
+        1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+        5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+        9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    }
+
+    dia = fecha.day
+    mes = meses[fecha.month]
+    año = fecha.year
+    hora = fecha.strftime('%H:%M')
+
+    return f'{dia} de {mes} de {año} a las {hora}'
+
+
 def enviar_email_confirmacion_solicitud(solicitud):
     """
     Envía email de confirmación al solicitante cuando crea una nueva solicitud
@@ -25,7 +43,7 @@ def enviar_email_confirmacion_solicitud(solicitud):
         'nombre_contacto': solicitud.nombre_contacto,
         'nombre_evento': solicitud.nombre_evento,
         'codigo_seguimiento': solicitud.codigo_seguimiento,
-        'fecha_inicio': solicitud.fecha_inicio.strftime('%d de %B de %Y a las %H:%M'),
+        'fecha_inicio': formatear_fecha_espanol(solicitud.fecha_inicio),
         'url_consulta': url_consulta,
     }
 
