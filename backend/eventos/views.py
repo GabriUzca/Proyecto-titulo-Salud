@@ -5,9 +5,30 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from datetime import timedelta
 from math import radians, sin, cos, sqrt, atan2
+import secrets
+import string
 from .models import EventRequest
 from .serializers import EventRequestSerializer, EventRequestAdminSerializer
 from .ticketmaster_service import buscar_eventos_por_ubicacion
+from .email_service import (
+    enviar_email_confirmacion_solicitud,
+    enviar_email_aprobacion,
+    enviar_email_rechazo
+)
+
+
+def generar_codigo_seguimiento():
+    """
+    Genera un código único de seguimiento alfanumérico
+    Formato: 12 caracteres (mayúsculas y números)
+    Ejemplo: A3K7M9P2Q5W8
+    """
+    caracteres = string.ascii_uppercase + string.digits
+    while True:
+        codigo = ''.join(secrets.choice(caracteres) for _ in range(12))
+        # Verificar que el código no exista en la base de datos
+        if not EventRequest.objects.filter(codigo_seguimiento=codigo).exists():
+            return codigo
 
 
 class IsAdminUser(permissions.BasePermission):
@@ -31,9 +52,21 @@ class EventRequestCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         """
-        Guarda la solicitud con estado 'pendiente'
+        Guarda la solicitud con estado 'pendiente', genera código de seguimiento
+        y envía email de confirmación
         """
-        serializer.save(estado='pendiente')
+        # Generar código único de seguimiento
+        codigo = generar_codigo_seguimiento()
+
+        # Guardar la solicitud con el código
+        solicitud = serializer.save(estado='pendiente', codigo_seguimiento=codigo)
+
+        # Enviar email de confirmación (no bloquear si falla)
+        try:
+            enviar_email_confirmacion_solicitud(solicitud)
+        except Exception as e:
+            # Log del error pero no fallar la creación
+            print(f"Error al enviar email de confirmación: {e}")
 
 
 class EventRequestAdminViewSet(viewsets.ModelViewSet):
@@ -107,6 +140,12 @@ class EventRequestAdminViewSet(viewsets.ModelViewSet):
 
         solicitud.save()
 
+        # Enviar email de aprobación (no bloquear si falla)
+        try:
+            enviar_email_aprobacion(solicitud)
+        except Exception as e:
+            print(f"Error al enviar email de aprobación: {e}")
+
         serializer = self.get_serializer(solicitud)
         return Response({
             "message": "Solicitud aprobada exitosamente",
@@ -144,6 +183,12 @@ class EventRequestAdminViewSet(viewsets.ModelViewSet):
         solicitud.respondido_por = request.user
         solicitud.comentarios_admin = comentarios
         solicitud.save()
+
+        # Enviar email de rechazo (no bloquear si falla)
+        try:
+            enviar_email_rechazo(solicitud)
+        except Exception as e:
+            print(f"Error al enviar email de rechazo: {e}")
 
         serializer = self.get_serializer(solicitud)
         return Response({
@@ -253,6 +298,30 @@ class EventosAprobadosView(generics.ListAPIView):
                     continue
 
         return EventRequest.objects.filter(id__in=eventos_cercanos).order_by('fecha_inicio')
+
+
+class ConsultarSolicitudView(APIView):
+    """
+    Vista pública para consultar el estado de una solicitud usando el código de seguimiento
+    No requiere autenticación
+
+    GET /api/eventos/consultar/<codigo>/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, codigo):
+        """
+        Consulta el estado de una solicitud por código de seguimiento
+        """
+        try:
+            solicitud = EventRequest.objects.get(codigo_seguimiento=codigo.upper())
+            serializer = EventRequestSerializer(solicitud)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except EventRequest.DoesNotExist:
+            return Response(
+                {"error": "No se encontró ninguna solicitud con ese código de seguimiento"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class TicketmasterProxyView(APIView):

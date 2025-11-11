@@ -93,6 +93,15 @@ class EventRequest(models.Model):
     )
 
     # ── Estado de la solicitud ─────────────────────────────────────────────
+    codigo_seguimiento = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        blank=True,
+        null=True,
+        verbose_name="Código de seguimiento",
+        help_text="Código único para consultar el estado de la solicitud"
+    )
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,

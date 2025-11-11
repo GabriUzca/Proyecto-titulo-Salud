@@ -23,8 +23,9 @@ import EditarUsuario from './paginas/EditarUsuario';
 import AdminEventos from './paginas/AdminEventos';
 import PaginaAdminMenu from './paginas/PaginaAdminMenu';
 
-// Event request page (public)
+// Event request pages (public)
 import SolicitarEvento from './paginas/SolicitarEvento';
+import ConsultarSolicitud from './paginas/ConsultarSolicitud';
 
 // Layout con navegación
 function LayoutConNavegacion() {
@@ -220,8 +221,9 @@ export default function App() {
         </PublicRoute>
       } />
 
-      {/* Ruta pública para solicitar eventos - No requiere autenticación */}
+      {/* Rutas públicas para eventos - No requieren autenticación */}
       <Route path="/solicitar-evento" element={<SolicitarEvento />} />
+      <Route path="/consultar-solicitud" element={<ConsultarSolicitud />} />
 
       {/* Ruta para completar perfil - Requiere autenticación pero permite perfil incompleto */}
       <Route path="/completar-perfil" element={

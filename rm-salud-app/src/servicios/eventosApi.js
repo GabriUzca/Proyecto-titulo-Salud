@@ -49,6 +49,19 @@ export const buscarEventosAprobados = async (
   return response.data;
 };
 
+/**
+ * Consultar estado de una solicitud por código de seguimiento
+ * @param {string} codigo - Código de seguimiento (12 caracteres alfanuméricos)
+ * @returns {Promise} Respuesta con los datos de la solicitud
+ */
+export const consultarSolicitudPorCodigo = async (codigo) => {
+  if (!codigo || codigo.trim().length === 0) {
+    throw new Error("El código de seguimiento es obligatorio");
+  }
+  const response = await publicApi.get(`/api/eventos/consultar/${codigo.trim().toUpperCase()}/`);
+  return response.data;
+};
+
 // ────────────────────────────────────────────────────────────────────────────
 // Endpoints de administración (requieren autenticación y permisos de staff)
 // ────────────────────────────────────────────────────────────────────────────

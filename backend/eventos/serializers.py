@@ -43,6 +43,7 @@ class EventRequestSerializer(serializers.ModelSerializer):
             'comentarios_admin',
             'respondido_por',
             'respondido_por_nombre',
+            'codigo_seguimiento',
         ]
         read_only_fields = [
             'id',
@@ -52,6 +53,7 @@ class EventRequestSerializer(serializers.ModelSerializer):
             'comentarios_admin',
             'respondido_por',
             'respondido_por_nombre',
+            'codigo_seguimiento',
         ]
 
     def get_respondido_por_nombre(self, obj):
