@@ -69,12 +69,20 @@ const PaginaLogin = ({ alIniciarSesion }) => {
 
         <div className="pt-3 border-t border-gray-200">
           <p className="text-gray-600 mb-2">¿Eres una empresa u organizador?</p>
-          <button
-            onClick={() => navigate('/solicitar-evento')}
-            className="text-teal-600 hover:text-teal-700 font-medium hover:underline"
-          >
-            Solicita publicar tu evento aquí
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate('/solicitar-evento')}
+              className="block w-full text-teal-600 hover:text-teal-700 font-medium hover:underline"
+            >
+              Solicita publicar tu evento aquí
+            </button>
+            <button
+              onClick={() => navigate('/consultar-solicitud')}
+              className="block w-full text-teal-600 hover:text-teal-700 font-medium hover:underline"
+            >
+              Consultar estado de mi solicitud
+            </button>
+          </div>
         </div>
       </div>
     </div>
