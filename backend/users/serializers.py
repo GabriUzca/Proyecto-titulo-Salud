@@ -6,7 +6,7 @@ from .models import UserProfile
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ('edad', 'peso', 'altura', 'sexo', 'foto')
+        fields = ('edad', 'peso', 'altura', 'sexo')
 
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
@@ -98,13 +98,12 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     peso = serializers.FloatField(required=False, min_value=0, allow_null=True)
     altura = serializers.FloatField(required=False, min_value=0, allow_null=True)
     sexo = serializers.CharField(required=False, allow_null=True)
-    foto = serializers.ImageField(required=False, allow_null=True)
     first_name = serializers.CharField(required=False, source='user.first_name')
     last_name = serializers.CharField(required=False, source='user.last_name')
 
     class Meta:
         model = UserProfile
-        fields = ["first_name", "last_name", "edad", "peso", "altura", "sexo", "foto"]
+        fields = ["first_name", "last_name", "edad", "peso", "altura", "sexo"]
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
