@@ -7,7 +7,7 @@ import api from '../../servicios/api';
 
 const PaginaCompletarPerfil = () => {
   const navigate = useNavigate();
-  const { recargarUsuario } = useAuth();
+  const { recargarUsuario, usuario } = useAuth();
   const [edad, setEdad] = useState('');
   const [peso, setPeso] = useState('');
   const [altura, setAltura] = useState('');
@@ -18,6 +18,17 @@ const PaginaCompletarPerfil = () => {
   useEffect(() => {
     document.title = 'Completar Perfil - RM Salud';
   }, []);
+
+  // Verificar si el perfil ya está completo y redirigir
+  useEffect(() => {
+    if (usuario) {
+      const perfilCompleto = usuario.edad != null && usuario.peso != null && usuario.altura != null && usuario.sexo != null;
+      if (perfilCompleto) {
+        console.log('Perfil ya está completo, redirigiendo a /inicio');
+        navigate('/inicio', { replace: true });
+      }
+    }
+  }, [usuario, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
