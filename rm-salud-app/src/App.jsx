@@ -158,8 +158,18 @@ function ProtectedRoute({ children, requireAdmin = false, allowIncompleteProfile
   // Verificar si el perfil está completo (tiene edad, peso, altura y sexo)
   const perfilCompleto = usuario?.edad != null && usuario?.peso != null && usuario?.altura != null && usuario?.sexo != null;
 
+  console.log('Verificando perfil completo:', {
+    usuario,
+    perfilCompleto,
+    edad: usuario?.edad,
+    peso: usuario?.peso,
+    altura: usuario?.altura,
+    sexo: usuario?.sexo
+  });
+
   // Si el perfil no está completo y no estamos en la página de completar perfil, redirigir
   if (!perfilCompleto && !allowIncompleteProfile && location.pathname !== '/completar-perfil') {
+    console.log('Redirigiendo a completar-perfil porque el perfil no está completo');
     return <Navigate to="/completar-perfil" replace />;
   }
 

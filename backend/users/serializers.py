@@ -21,22 +21,34 @@ class UserSerializer(serializers.ModelSerializer):
         #                                                   ⭐ AGREGADO is_staff, edad, peso, altura, sexo
 
     def get_profile(self, obj):
+        # Intentar obtener el perfil de la relación cargada primero
+        if hasattr(obj, 'profile'):
+            return UserProfileSerializer(obj.profile).data
+        # Si no está cargado, crear o obtener
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return UserProfileSerializer(profile).data
 
     def get_edad(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.edad
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.edad
 
     def get_peso(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.peso
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.peso
 
     def get_altura(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.altura
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.altura
 
     def get_sexo(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.sexo
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.sexo
 

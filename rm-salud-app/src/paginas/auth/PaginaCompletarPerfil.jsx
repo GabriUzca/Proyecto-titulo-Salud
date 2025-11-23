@@ -65,22 +65,29 @@ const PaginaCompletarPerfil = () => {
 
     try {
       setCargando(true);
-      await api.patch('/api/auth/perfil', {
+
+      // Actualizar el perfil
+      const response = await api.patch('/api/auth/perfil', {
         edad: edadNum,
         peso: pesoNum,
         altura: alturaNum,
         sexo: sexo
       });
 
+      console.log('Perfil actualizado exitosamente:', response.data);
+
       // Recargar los datos del usuario para actualizar el estado
       await recargarUsuario();
 
-      // Redirigir al inicio después de completar el perfil
-      navigate('/inicio');
+      console.log('Usuario recargado, navegando a /inicio');
+
+      // Pequeño delay para asegurar que el estado se actualice
+      setTimeout(() => {
+        navigate('/inicio', { replace: true });
+      }, 100);
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
       setError(err.response?.data?.message || 'Error al actualizar el perfil');
-    } finally {
       setCargando(false);
     }
   };

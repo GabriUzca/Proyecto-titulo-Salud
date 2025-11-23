@@ -14,7 +14,8 @@ class MeView(generics.RetrieveAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get_object(self):
-        return self.request.user
+        # Usar select_related para optimizar y asegurar que se obtiene el perfil actualizado
+        return User.objects.select_related('profile').get(pk=self.request.user.pk)
 
 class MeUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]

@@ -12,9 +12,11 @@ export const useAuth = () => {
       const access = localStorage.getItem('access');
       if (!access) return;
       const { data } = await authApi.me();
+      console.log('Datos del usuario cargados:', data);
       setUsuario(data);
       setEstaLogueado(true);
-    } catch {
+    } catch (error) {
+      console.error('Error al cargar sesión:', error);
       setEstaLogueado(false);
       setUsuario(null);
     }
