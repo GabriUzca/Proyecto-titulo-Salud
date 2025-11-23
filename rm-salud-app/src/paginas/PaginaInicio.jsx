@@ -155,11 +155,16 @@ export default function PaginaInicio() {
     () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.duracion_min || 0), 0),
     [act]
   );
-  
-  const kcalHoy = useMemo(
-    () => food.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
-    [food]
+
+  const kcalQuemadasHoy = useMemo(
+    () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
+    [act]
   );
+
+  const kcalNetasHoy = useMemo(() => {
+    const consumidas = food.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0);
+    return consumidas - kcalQuemadasHoy;
+  }, [food, kcalQuemadasHoy]);
 
   // Filtrar recursos cercanos (dentro de 40 km)
   const recursosCercanos = useMemo(() => {
@@ -474,23 +479,23 @@ export default function PaginaInicio() {
             {/* Progreso de calorías del día vs meta */}
             <div className="mb-3">
               <div className="flex justify-between text-xs text-gray-600 mb-1">
-                <span>Calorías consumidas hoy</span>
-                <span>{kcalHoy} / {Math.round(metaActiva.meta_calorica_diaria)} kcal</span>
+                <span>Calorías netas hoy</span>
+                <span>{Math.round(kcalNetasHoy)} / {Math.round(metaActiva.meta_calorica_diaria)} kcal</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    (kcalHoy / metaActiva.meta_calorica_diaria) * 100 > 100
+                    (kcalNetasHoy / metaActiva.meta_calorica_diaria) * 100 > 100
                       ? 'bg-gradient-to-r from-red-400 to-red-600'
                       : 'bg-gradient-to-r from-purple-400 to-purple-600'
                   }`}
-                  style={{width: `${Math.min(100, (kcalHoy / metaActiva.meta_calorica_diaria) * 100)}%`}}
+                  style={{width: `${Math.min(100, (kcalNetasHoy / metaActiva.meta_calorica_diaria) * 100)}%`}}
                 ></div>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {kcalHoy < metaActiva.meta_calorica_diaria
-                  ? `Te quedan ${Math.round(metaActiva.meta_calorica_diaria - kcalHoy)} kcal disponibles`
-                  : `Has excedido tu meta por ${Math.round(kcalHoy - metaActiva.meta_calorica_diaria)} kcal`
+                {kcalNetasHoy < metaActiva.meta_calorica_diaria
+                  ? `Te quedan ${Math.round(metaActiva.meta_calorica_diaria - kcalNetasHoy)} kcal disponibles`
+                  : `Has excedido tu meta por ${Math.round(kcalNetasHoy - metaActiva.meta_calorica_diaria)} kcal`
                 }
               </p>
             </div>

@@ -22,21 +22,29 @@ export default function ConfigurarMeta() {
     cargarMetaActual();
   }, []);
 
+  // Actualizar peso actual cuando el usuario se carga
+  useEffect(() => {
+    if (usuario?.peso && !form.peso_actual) {
+      setForm(f => ({ ...f, peso_actual: usuario.peso }));
+    }
+  }, [usuario]);
+
   const cargarMetaActual = async () => {
     try {
       const { data } = await metasApi.getActiva();
       // Si tiene meta activa, pre-llenar el formulario con datos actuales
       setForm({
-        peso_actual: data.peso_actual || "",
+        peso_actual: data.peso_actual || usuario?.peso || "",
         peso_objetivo: data.peso_objetivo || "",
         fecha_objetivo: data.fecha_objetivo || "",
         nivel_actividad: data.nivel_actividad || "sedentario"
       });
     } catch (err) {
       // Si no hay meta activa, usar el peso del perfil si existe
-      if (usuario?.peso) {
-        setForm(f => ({ ...f, peso_actual: usuario.peso }));
-      }
+      setForm(f => ({
+        ...f,
+        peso_actual: usuario?.peso || ""
+      }));
     } finally {
       setCargandoActual(false);
     }
