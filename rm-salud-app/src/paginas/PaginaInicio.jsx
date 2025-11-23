@@ -49,6 +49,7 @@ export default function PaginaInicio() {
   const [recs, setRecs] = useState([]);
   const [eventosTicketmaster, setEventosTicketmaster] = useState([]);
   const [eventosAprobados, setEventosAprobados] = useState([]);
+  const [pois, setPois] = useState([]);
   const [posUsuario, setPosUsuario] = useState(null);
   const [mostrarTodosEventos, setMostrarTodosEventos] = useState(false);
   const [metaActiva, setMetaActiva] = useState(null);
@@ -151,6 +152,27 @@ export default function PaginaInicio() {
     cargarEventos();
   }, [posUsuario]);
 
+  // Cargar POIs personalizados cuando se obtiene la ubicación y hay meta activa
+  useEffect(() => {
+    if (!posUsuario || !metaActiva) return;
+
+    const cargarPOIs = async () => {
+      try {
+        const response = await recomendacionesApi.poi(
+          posUsuario.lat,
+          posUsuario.lng,
+          5 // 5 km de radio
+        );
+        setPois(response.data?.pois || []);
+      } catch (error) {
+        console.error('Error cargando POIs personalizados:', error);
+        setPois([]);
+      }
+    };
+
+    cargarPOIs();
+  }, [posUsuario, metaActiva]);
+
   const minutosHoy = useMemo(
     () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.duracion_min || 0), 0),
     [act]
@@ -243,29 +265,31 @@ export default function PaginaInicio() {
     setEventosAprobados(eventosLocal);
   };
 
-  // Combinar recursos locales cercanos, eventos de Ticketmaster y eventos aprobados
+  // Combinar recursos locales cercanos, eventos de Ticketmaster, eventos aprobados y POIs
   const recursosYEventos = useMemo(() => {
     if (mostrarTodosEventos) {
-      // Mostrar todos: primero recursos cercanos, luego todos los eventos
-      return [...recursosCercanos, ...eventosTicketmaster, ...eventosAprobados];
+      // Mostrar todos: primero POIs, luego recursos cercanos, luego todos los eventos
+      return [...pois, ...recursosCercanos, ...eventosTicketmaster, ...eventosAprobados];
     }
 
-    // Vista compacta: intercalar 3 de cada uno
+    // Vista compacta: intercalar
+    const poisLimitados = pois.slice(0, 2);
     const eventosTicket = eventosTicketmaster.slice(0, 2);
-    const eventosLocal = eventosAprobados.slice(0, 2);
-    const recursosLimitados = recursosCercanos.slice(0, 2);
+    const eventosLocal = eventosAprobados.slice(0, 1);
+    const recursosLimitados = recursosCercanos.slice(0, 1);
 
     const combinados = [];
-    const maxLength = Math.max(eventosTicket.length, eventosLocal.length, recursosLimitados.length);
+    const maxLength = Math.max(poisLimitados.length, eventosTicket.length, eventosLocal.length, recursosLimitados.length);
 
     for (let i = 0; i < maxLength; i++) {
+      if (poisLimitados[i]) combinados.push(poisLimitados[i]);
       if (recursosLimitados[i]) combinados.push(recursosLimitados[i]);
       if (eventosTicket[i]) combinados.push(eventosTicket[i]);
       if (eventosLocal[i]) combinados.push(eventosLocal[i]);
     }
 
     return combinados.slice(0, 6); // Máximo 6 items
-  }, [recursosCercanos, eventosTicketmaster, eventosAprobados, mostrarTodosEventos]);
+  }, [recursosCercanos, eventosTicketmaster, eventosAprobados, pois, mostrarTodosEventos]);
 
   const handleLogout = () => {
     if (confirm('¿Cerrar sesión?')) {
@@ -603,7 +627,7 @@ export default function PaginaInicio() {
                 Configura tu objetivo y recibe un plan calórico personalizado
               </p>
               <button
-                onClick={() => navigate('/configurar-meta')}
+                onClick={() => window.location.href = '/configurar-meta'}
                 className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors"
               >
                 Configurar Meta
@@ -686,13 +710,14 @@ export default function PaginaInicio() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-xl text-gray-800">Recursos y Eventos</h3>
             <span className="text-xs text-teal-600 font-medium">
-              {recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length} cercanos
+              {recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length} cercanos
             </span>
           </div>
           <div ref={mapaContainerRef} className="rounded-xl overflow-hidden mb-3">
             <MapaRecursos
               ref={mapaRef}
               recursos={recursosCercanos}
+              pois={pois}
               alto={220}
               onEventosActualizados={handleEventosActualizados}
               onUbicacionActualizada={setPosUsuario}
@@ -700,7 +725,48 @@ export default function PaginaInicio() {
           </div>
           <ul className="space-y-2">
             {recursosYEventos.map((item, i) => (
-              item.esTicketmaster ? (
+              item.icono ? (
+                // POI personalizado
+                <li
+                  key={`poi-${item.id}-${i}`}
+                  onClick={() => handleEventoClick(item)}
+                  className="flex items-start p-3 hover:bg-purple-50 rounded-lg transition-colors border-l-4 border-purple-500 cursor-pointer"
+                >
+                  <span className="text-2xl mr-2">
+                    {item.icono === 'gym' ? '🏋️' :
+                     item.icono === 'sports' ? '⚽' :
+                     item.icono === 'park' ? '🌳' :
+                     item.icono === 'bike' ? '🚴' :
+                     item.icono === 'market' ? '🛒' :
+                     item.icono === 'supermarket' ? '🏪' :
+                     item.icono === 'restaurant' ? '🍽️' :
+                     item.icono === 'bakery' ? '🥖' :
+                     item.icono === 'shop' ? '🏬' :
+                     '📍'}
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <p className="font-semibold text-gray-800 text-sm flex-1">{item.nombre}</p>
+                      <span className="text-xs px-2 py-1 rounded-full ml-2 bg-purple-100 text-purple-700">
+                        {item.tipo}
+                      </span>
+                    </div>
+                    {item.direccion && (
+                      <p className="text-xs text-gray-600 mb-1">📍 {item.direccion}</p>
+                    )}
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                        Recomendado para ti
+                      </span>
+                      {item.prioridad && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          ⭐ Prioridad: {item.prioridad}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ) : item.esTicketmaster ? (
                 // Evento de Ticketmaster
                 <li
                   key={`tm-${item.id}`}
@@ -798,7 +864,7 @@ export default function PaginaInicio() {
           </ul>
 
           {/* Botón para expandir/colapsar */}
-          {(recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length > 6) && (
+          {(recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length > 6) && (
             <div className="mt-3 text-center">
               <button
                 onClick={() => setMostrarTodosEventos(!mostrarTodosEventos)}
@@ -806,7 +872,7 @@ export default function PaginaInicio() {
               >
                 {mostrarTodosEventos
                   ? '← Ver menos'
-                  : `Ver todos (${recursosCercanos.length + eventosTicketmaster.length}) →`
+                  : `Ver todos (${recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length}) →`
                 }
               </button>
             </div>

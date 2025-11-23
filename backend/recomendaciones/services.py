@@ -1,4 +1,8 @@
 from datetime import date, timedelta
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Datos mock de recursos locales en la RM
 DATA = [
@@ -43,7 +47,7 @@ def recomendaciones_locales(comuna="Santiago"):
     """
     hoy = date.today()
     items = []
-    
+
     for it in DATA:
         items.append({
             "titulo": it["titulo"],
@@ -53,5 +57,227 @@ def recomendaciones_locales(comuna="Santiago"):
             "fecha": str(hoy + timedelta(days=it["fecha"])),
             "tipo": it.get("tipo", "otro")
         })
-    
+
     return items
+
+
+def consultar_overpass_api(lat, lng, radius, queries):
+    """
+    Consulta la API de Overpass para obtener POIs de OpenStreetMap.
+
+    Args:
+        lat: Latitud del centro de búsqueda
+        lng: Longitud del centro de búsqueda
+        radius: Radio de búsqueda en metros
+        queries: Lista de queries Overpass QL
+
+    Returns:
+        Lista de elementos encontrados
+    """
+    overpass_url = "https://overpass-api.de/api/interpreter"
+
+    # Construir la query combinada
+    query_parts = []
+    for q in queries:
+        query_parts.append(q)
+
+    overpass_query = f"""
+    [out:json][timeout:25];
+    (
+      {';'.join(query_parts)};
+    );
+    out body;
+    >;
+    out skel qt;
+    """
+
+    try:
+        response = requests.post(
+            overpass_url,
+            data={'data': overpass_query},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json().get('elements', [])
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error consultando Overpass API: {e}")
+        return []
+
+
+def get_poi_recommendations(user, lat, lng, radius_km=5):
+    """
+    Genera recomendaciones de POIs personalizadas basadas en las metas del usuario.
+
+    Args:
+        user: Usuario autenticado
+        lat: Latitud de búsqueda
+        lng: Longitud de búsqueda
+        radius_km: Radio de búsqueda en kilómetros (default: 5)
+
+    Returns:
+        Lista de POIs recomendados con información detallada
+    """
+    from metas.models import MetaPeso
+
+    # Obtener la meta activa del usuario
+    try:
+        meta = MetaPeso.objects.filter(user=user).order_by('-fecha_objetivo').first()
+        if not meta:
+            return {
+                'error': 'No se encontró una meta de peso activa',
+                'pois': []
+            }
+
+        tipo_meta = meta.tipo_meta  # 'perdida', 'ganancia', 'mantenimiento'
+        nivel_actividad = meta.nivel_actividad
+
+    except Exception as e:
+        logger.error(f"Error obteniendo meta del usuario: {e}")
+        return {
+            'error': 'Error al obtener información del usuario',
+            'pois': []
+        }
+
+    radius_m = radius_km * 1000
+    queries = []
+    poi_config = {}
+
+    # Configurar queries según el tipo de meta
+    if tipo_meta == 'perdida':
+        # Para bajar de peso: gimnasios, parques, ciclovías, centros deportivos
+        queries = [
+            f'node["leisure"="fitness_centre"](around:{radius_m},{lat},{lng})',
+            f'node["leisure"="sports_centre"](around:{radius_m},{lat},{lng})',
+            f'node["leisure"="park"](around:{radius_m},{lat},{lng})',
+            f'way["highway"="cycleway"](around:{radius_m},{lat},{lng})',
+            f'node["sport"="fitness"](around:{radius_m},{lat},{lng})',
+        ]
+        poi_config = {
+            'fitness_centre': {'tipo': 'gimnasio', 'prioridad': 10, 'icono': 'gym'},
+            'sports_centre': {'tipo': 'centro_deportivo', 'prioridad': 9, 'icono': 'sports'},
+            'park': {'tipo': 'parque', 'prioridad': 7, 'icono': 'park'},
+            'cycleway': {'tipo': 'ciclovia', 'prioridad': 8, 'icono': 'bike'},
+        }
+
+    elif tipo_meta == 'ganancia':
+        # Para subir de peso: ferias, mercados, supermercados, restaurantes
+        queries = [
+            f'node["amenity"="marketplace"](around:{radius_m},{lat},{lng})',
+            f'node["shop"="supermarket"](around:{radius_m},{lat},{lng})',
+            f'node["amenity"="restaurant"](around:{radius_m},{lat},{lng})',
+            f'node["shop"="bakery"](around:{radius_m},{lat},{lng})',
+            f'node["shop"="convenience"](around:{radius_m},{lat},{lng})',
+        ]
+        poi_config = {
+            'marketplace': {'tipo': 'feria', 'prioridad': 10, 'icono': 'market'},
+            'supermarket': {'tipo': 'supermercado', 'prioridad': 9, 'icono': 'supermarket'},
+            'restaurant': {'tipo': 'restaurante', 'prioridad': 7, 'icono': 'restaurant'},
+            'bakery': {'tipo': 'panaderia', 'prioridad': 8, 'icono': 'bakery'},
+            'convenience': {'tipo': 'tienda', 'prioridad': 6, 'icono': 'shop'},
+        }
+
+    else:  # mantenimiento
+        # Balance: parques, mercados, gimnasios
+        queries = [
+            f'node["leisure"="park"](around:{radius_m},{lat},{lng})',
+            f'node["leisure"="fitness_centre"](around:{radius_m},{lat},{lng})',
+            f'node["amenity"="marketplace"](around:{radius_m},{lat},{lng})',
+            f'node["shop"="supermarket"](around:{radius_m},{lat},{lng})',
+        ]
+        poi_config = {
+            'park': {'tipo': 'parque', 'prioridad': 8, 'icono': 'park'},
+            'fitness_centre': {'tipo': 'gimnasio', 'prioridad': 8, 'icono': 'gym'},
+            'marketplace': {'tipo': 'feria', 'prioridad': 7, 'icono': 'market'},
+            'supermarket': {'tipo': 'supermercado', 'prioridad': 7, 'icono': 'supermarket'},
+        }
+
+    # Ajustar prioridades según nivel de actividad
+    if nivel_actividad == 'sedentario' and tipo_meta == 'perdida':
+        # Priorizar lugares más accesibles para principiantes
+        if 'park' in poi_config:
+            poi_config['park']['prioridad'] += 2
+    elif nivel_actividad in ['activo', 'muy_activo']:
+        # Priorizar instalaciones deportivas más intensas
+        if 'sports_centre' in poi_config:
+            poi_config['sports_centre']['prioridad'] += 2
+
+    # Consultar Overpass API
+    elements = consultar_overpass_api(lat, lng, radius_m, queries)
+
+    # Procesar y formatear resultados
+    pois = []
+    for element in elements:
+        if element.get('type') not in ['node', 'way']:
+            continue
+
+        tags = element.get('tags', {})
+
+        # Obtener coordenadas
+        if element.get('type') == 'node':
+            poi_lat = element.get('lat')
+            poi_lng = element.get('lon')
+        elif element.get('type') == 'way':
+            # Para ways, usar el centro aproximado
+            poi_lat = element.get('center', {}).get('lat') or element.get('lat')
+            poi_lng = element.get('center', {}).get('lon') or element.get('lon')
+        else:
+            continue
+
+        if not poi_lat or not poi_lng:
+            continue
+
+        # Determinar tipo de POI
+        poi_type = None
+        config = None
+
+        for key, value in tags.items():
+            if value in poi_config:
+                poi_type = value
+                config = poi_config[value]
+                break
+
+        if not config:
+            # Intentar determinar por tag
+            if 'leisure' in tags:
+                leisure_type = tags['leisure']
+                if leisure_type in poi_config:
+                    config = poi_config[leisure_type]
+            elif 'amenity' in tags:
+                amenity_type = tags['amenity']
+                if amenity_type in poi_config:
+                    config = poi_config[amenity_type]
+            elif 'shop' in tags:
+                shop_type = tags['shop']
+                if shop_type in poi_config:
+                    config = poi_config[shop_type]
+            elif 'highway' in tags and tags['highway'] == 'cycleway':
+                config = poi_config.get('cycleway')
+
+        if not config:
+            continue
+
+        # Obtener nombre
+        nombre = tags.get('name', 'Sin nombre')
+        direccion = tags.get('addr:street', '')
+
+        pois.append({
+            'id': element.get('id'),
+            'nombre': nombre,
+            'tipo': config['tipo'],
+            'icono': config['icono'],
+            'prioridad': config['prioridad'],
+            'lat': poi_lat,
+            'lng': poi_lng,
+            'direccion': direccion,
+            'tags': tags
+        })
+
+    # Ordenar por prioridad
+    pois.sort(key=lambda x: x['prioridad'], reverse=True)
+
+    return {
+        'tipo_meta': tipo_meta,
+        'nivel_actividad': nivel_actividad,
+        'total': len(pois),
+        'pois': pois[:50]  # Limitar a 50 resultados
+    }

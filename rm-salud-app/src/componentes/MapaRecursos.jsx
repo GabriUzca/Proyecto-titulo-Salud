@@ -51,6 +51,40 @@ const EventoAprobadoIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+// Función para crear iconos de POIs personalizados
+const createPOIIcon = (emoji, color) => {
+  const svgString = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="30" height="45">
+      <path fill="${color}" d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 18 9 18s9-11.25 9-18c0-4.97-4.03-9-9-9z"/>
+      <circle fill="white" cx="12" cy="9" r="4.5"/>
+      <text x="12" y="12" text-anchor="middle" font-size="10">${emoji}</text>
+    </svg>
+  `;
+
+  return L.icon({
+    iconUrl: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgString),
+    shadowUrl,
+    iconSize: [30, 45],
+    iconAnchor: [15, 45],
+    popupAnchor: [0, -45],
+    shadowSize: [41, 41],
+  });
+};
+
+// Iconos para diferentes tipos de POIs
+const POIIcons = {
+  gym: createPOIIcon('🏋️', '#6f42c1'),
+  sports: createPOIIcon('⚽', '#fd7e14'),
+  park: createPOIIcon('🌳', '#20c997'),
+  bike: createPOIIcon('🚴', '#17a2b8'),
+  market: createPOIIcon('🛒', '#ffc107'),
+  supermarket: createPOIIcon('🏪', '#007bff'),
+  restaurant: createPOIIcon('🍽️', '#dc3545'),
+  bakery: createPOIIcon('🥖', '#e83e8c'),
+  shop: createPOIIcon('🏬', '#6c757d'),
+  default: createPOIIcon('📍', '#6c757d'),
+};
+
 L.Marker.prototype.options.icon = DefaultIcon;
 
 function FitBounds({ puntos }) {
@@ -129,7 +163,7 @@ function SearchHereButton({ onSearch, isLoading }) {
   );
 }
 
-const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, radioKm = 40, onEventosActualizados, onUbicacionActualizada }, ref) => {
+const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEventos = true, radioKm = 40, onEventosActualizados, onUbicacionActualizada }, ref) => {
   const [posUsuario, setPosUsuario] = useState(null);
   const [eventosTicketmaster, setEventosTicketmaster] = useState([]);
   const [eventosAprobados, setEventosAprobados] = useState([]);
@@ -219,9 +253,12 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
       }))
       .filter(e => !isNaN(e.lat) && !isNaN(e.lng));
 
-    const todos = [...base, ...eventosTicket, ...eventosLocal];
+    // POIs personalizados
+    const poisValidos = (pois || []).filter(p => typeof p.lat === "number" && typeof p.lng === "number");
+
+    const todos = [...base, ...eventosTicket, ...eventosLocal, ...poisValidos];
     return posUsuario ? [...todos, { lat: posUsuario.lat, lng: posUsuario.lng, __yo: true }] : todos;
-  }, [recursos, eventosTicketmaster, eventosAprobados, posUsuario]);
+  }, [recursos, eventosTicketmaster, eventosAprobados, pois, posUsuario]);
 
   // Centro inicial: ubicación del usuario si existe, sino Santiago
   const center = posUsuario
@@ -244,11 +281,11 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
         }}>
           <span>
             {cargandoEventos && "🔄 Cargando eventos..."}
-            {!cargandoEventos && (eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0) && `🎫 ${eventosTicketmaster.length + eventosAprobados.length + recursos.length} eventos encontrados`}
-            {!cargandoEventos && eventosTicketmaster.length === 0 && eventosAprobados.length === 0 && recursos.length === 0 && !errorEventos && "📍 No hay eventos cerca"}
+            {!cargandoEventos && (eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0 || pois.length > 0) && `🎫 ${eventosTicketmaster.length + eventosAprobados.length + recursos.length + pois.length} lugares encontrados`}
+            {!cargandoEventos && eventosTicketmaster.length === 0 && eventosAprobados.length === 0 && recursos.length === 0 && pois.length === 0 && !errorEventos && "📍 No hay lugares cerca"}
             {errorEventos && `⚠️ ${errorEventos}`}
           </span>
-          {(eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0) && (
+          {(eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0 || pois.length > 0) && (
             <span style={{ fontSize: 12, color: "#6c757d" }}>
               Radio: {radioKm} km
             </span>
@@ -364,6 +401,28 @@ const MapaRecursos = forwardRef(({ recursos, alto = 260, mostrarEventos = true, 
                           Más información →
                         </a>
                       )}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+
+          {/* Marcadores de POIs personalizados */}
+          {pois?.map((poi, i) => {
+            if (typeof poi.lat !== "number" || typeof poi.lng !== "number") return null;
+
+            const icon = POIIcons[poi.icono] || POIIcons.default;
+
+            return (
+              <Marker key={`poi-${poi.id}-${i}`} position={[poi.lat, poi.lng]} icon={icon}>
+                <Popup maxWidth={300}>
+                  <div style={{ minWidth: 200 }}>
+                    <strong style={{ fontSize: 16, color: '#333' }}>{poi.nombre}</strong><br />
+                    <div style={{ marginTop: 8, fontSize: 13 }}>
+                      {poi.tipo && <><strong>📋 Tipo:</strong> {poi.tipo}<br /></>}
+                      {poi.direccion && <><strong>📮 Dirección:</strong> {poi.direccion}<br /></>}
+                      {poi.prioridad && <><strong>⭐ Prioridad:</strong> {poi.prioridad}/10<br /></>}
                     </div>
                   </div>
                 </Popup>
