@@ -15,6 +15,7 @@ export default function ConfigurarMeta() {
   const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cargandoActual, setCargandoActual] = useState(true);
+  const [advertencias, setAdvertencias] = useState([]);
 
   useEffect(() => {
     document.title = 'Configurar Meta - RM Salud';
@@ -41,7 +42,60 @@ export default function ConfigurarMeta() {
     }
   };
 
-  const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    // Limpiar advertencias al cambiar valores
+    setAdvertencias([]);
+    setMsg(null);
+  };
+
+  // Calcular advertencias en tiempo real
+  useEffect(() => {
+    const calcularAdvertencias = () => {
+      const warns = [];
+
+      if (!form.peso_objetivo || !form.fecha_objetivo) return;
+
+      const pesoActual = parseFloat(form.peso_actual);
+      const pesoObjetivo = parseFloat(form.peso_objetivo);
+
+      if (isNaN(pesoActual) || isNaN(pesoObjetivo)) return;
+
+      const diferencia = Math.abs(pesoActual - pesoObjetivo);
+      const fechaObj = new Date(form.fecha_objetivo);
+      const hoy = new Date();
+      const diasRestantes = Math.ceil((fechaObj - hoy) / (1000 * 60 * 60 * 24));
+
+      if (diasRestantes > 0) {
+        const kgPorSemana = (diferencia / diasRestantes) * 7;
+        const deficitDiario = (diferencia * 7700) / diasRestantes;
+
+        if (deficitDiario > 1000) {
+          warns.push({
+            tipo: 'extremo',
+            emoji: '🚨',
+            mensaje: `Déficit muy alto (${Math.round(deficitDiario)} kcal/día). Perder/ganar ${kgPorSemana.toFixed(1)} kg por semana puede ser peligroso para tu salud.`
+          });
+        } else if (deficitDiario >= 500) {
+          warns.push({
+            tipo: 'correcto',
+            emoji: '✅',
+            mensaje: `Ritmo saludable (${Math.round(deficitDiario)} kcal/día). Aproximadamente ${kgPorSemana.toFixed(1)} kg por semana.`
+          });
+        } else if (deficitDiario < 300) {
+          warns.push({
+            tipo: 'lento',
+            emoji: '🐢',
+            mensaje: `Ritmo muy lento (${Math.round(deficitDiario)} kcal/día). Aproximadamente ${kgPorSemana.toFixed(1)} kg por semana. Considera una fecha más cercana.`
+          });
+        }
+      }
+
+      setAdvertencias(warns);
+    };
+
+    calcularAdvertencias();
+  }, [form.peso_actual, form.peso_objetivo, form.fecha_objetivo]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -154,11 +208,13 @@ export default function ConfigurarMeta() {
                 type="number"
                 step="0.1"
                 value={form.peso_actual}
-                onChange={onChange}
-                placeholder="Ej: 70.5"
-                required
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                readOnly
+                disabled
+                className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 cursor-not-allowed"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Peso tomado de tu perfil
+              </p>
             </div>
 
             {/* Peso objetivo */}
@@ -221,6 +277,37 @@ export default function ConfigurarMeta() {
                 Este factor afecta tu gasto energético total
               </p>
             </div>
+
+            {/* Advertencias sobre el ritmo */}
+            {advertencias.length > 0 && (
+              <div className="space-y-2">
+                {advertencias.map((adv, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-lg border ${
+                      adv.tipo === 'extremo'
+                        ? 'bg-red-50 border-red-200'
+                        : adv.tipo === 'correcto'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-yellow-50 border-yellow-200'
+                    }`}
+                  >
+                    <div className="flex items-start">
+                      <span className="text-2xl mr-2">{adv.emoji}</span>
+                      <p className={`text-sm ${
+                        adv.tipo === 'extremo'
+                          ? 'text-red-700'
+                          : adv.tipo === 'correcto'
+                          ? 'text-green-700'
+                          : 'text-yellow-700'
+                      }`}>
+                        {adv.mensaje}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Mensaje de feedback */}
             {msg && (
