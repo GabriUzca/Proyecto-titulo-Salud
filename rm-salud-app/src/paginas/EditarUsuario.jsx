@@ -257,9 +257,6 @@ export default function EditarUsuario() {
                 placeholder="email@ejemplo.com"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Se validará que el correo no esté en uso por otro usuario
-              </p>
             </div>
 
             {/* Sexo */}

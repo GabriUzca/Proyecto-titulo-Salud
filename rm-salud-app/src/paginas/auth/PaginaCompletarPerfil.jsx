@@ -7,7 +7,7 @@ import api from '../../servicios/api';
 
 const PaginaCompletarPerfil = () => {
   const navigate = useNavigate();
-  const { recargarUsuario, usuario } = useAuth();
+  const { recargarUsuario } = useAuth();
   const [edad, setEdad] = useState('');
   const [peso, setPeso] = useState('');
   const [altura, setAltura] = useState('');
@@ -18,17 +18,6 @@ const PaginaCompletarPerfil = () => {
   useEffect(() => {
     document.title = 'Completar Perfil - RM Salud';
   }, []);
-
-  // Verificar si el perfil ya está completo y redirigir
-  useEffect(() => {
-    if (usuario) {
-      const perfilCompleto = usuario.edad != null && usuario.peso != null && usuario.altura != null && usuario.sexo != null;
-      if (perfilCompleto) {
-        console.log('Perfil ya está completo, redirigiendo a /inicio');
-        navigate('/inicio', { replace: true });
-      }
-    }
-  }, [usuario, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -78,24 +67,18 @@ const PaginaCompletarPerfil = () => {
       setCargando(true);
 
       // Actualizar el perfil
-      const response = await api.patch('/api/auth/perfil', {
+      await api.patch('/api/auth/perfil', {
         edad: edadNum,
         peso: pesoNum,
         altura: alturaNum,
         sexo: sexo
       });
 
-      console.log('Perfil actualizado exitosamente:', response.data);
-
       // Recargar los datos del usuario para actualizar el estado
       await recargarUsuario();
 
-      console.log('Usuario recargado, navegando a /inicio');
-
-      // Pequeño delay para asegurar que el estado se actualice
-      setTimeout(() => {
-        navigate('/inicio', { replace: true });
-      }, 100);
+      // Forzar recarga de la página para asegurar que el estado se actualice
+      window.location.href = '/inicio';
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
       setError(err.response?.data?.message || 'Error al actualizar el perfil');
