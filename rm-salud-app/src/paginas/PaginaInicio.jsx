@@ -5,6 +5,7 @@ import { actividadApi } from "../servicios/actividadApi";
 import { alimentacionApi } from "../servicios/alimentacionApi";
 import { recomendacionesApi } from "../servicios/recomendacionesApi";
 import { buscarEventosPorUbicacion } from "../servicios/ticketmasterApi";
+import { metasApi } from "../servicios/metasApi";
 import MapaRecursos from "../componentes/MapaRecursos";
 import { IconoCampana, IconoUsuario, IconoLlama, IconoGota, IconoPisadas, IconoCasa } from '../componentes/iconos';
 
@@ -50,6 +51,7 @@ export default function PaginaInicio() {
   const [eventosAprobados, setEventosAprobados] = useState([]);
   const [posUsuario, setPosUsuario] = useState(null);
   const [mostrarTodosEventos, setMostrarTodosEventos] = useState(false);
+  const [metaActiva, setMetaActiva] = useState(null);
   const mapaRef = useRef();
   const mapaContainerRef = useRef();
 
@@ -75,6 +77,15 @@ export default function PaginaInicio() {
         setAct(a.data || []);
         setFood(f.data || []);
         setRecs(r.data?.items || []);
+
+        // Cargar meta activa (si existe)
+        try {
+          const metaRes = await metasApi.getActiva();
+          if (mounted) setMetaActiva(metaRes.data);
+        } catch (err) {
+          // Si no hay meta activa (404), no hacer nada
+          if (mounted) setMetaActiva(null);
+        }
       } catch (err) {
         console.error("Error cargando datos:", err);
       } finally {
@@ -386,7 +397,7 @@ export default function PaginaInicio() {
               <p className="font-bold text-2xl text-teal-900">{minutosHoy}</p>
               <p className="text-xs text-teal-600">minutos</p>
             </div>
-            
+
             {/* Calorías */}
             <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl">
               <div className="flex items-center mb-2">
@@ -399,7 +410,7 @@ export default function PaginaInicio() {
               <p className="text-xs text-orange-600">kcal</p>
             </div>
           </div>
-          
+
           {/* Barra de progreso */}
           <div className="mt-4">
             <div className="flex justify-between text-xs text-gray-600 mb-1">
@@ -407,13 +418,107 @@ export default function PaginaInicio() {
               <span>{Math.min(100, Math.round((minutosHoy / 30) * 100))}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-teal-400 to-teal-600 h-3 rounded-full transition-all duration-500" 
+              <div
+                className="bg-gradient-to-r from-teal-400 to-teal-600 h-3 rounded-full transition-all duration-500"
                 style={{width: `${Math.min(100, (minutosHoy / 30) * 100)}%`}}
               ></div>
             </div>
           </div>
         </div>
+
+        {/* Meta Calórica */}
+        {metaActiva ? (
+          <div className="bg-white p-5 rounded-2xl shadow-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-xl text-gray-800">Tu Meta de Peso</h3>
+              <button
+                onClick={() => navigate('/progreso-meta')}
+                className="text-xs text-purple-600 font-medium hover:text-purple-700"
+              >
+                Ver detalles →
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl mb-3">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs text-purple-700 mb-1">Meta Calórica Diaria</p>
+                  <p className="font-bold text-3xl text-purple-900">
+                    {Math.round(metaActiva.meta_calorica_diaria)}
+                  </p>
+                  <p className="text-xs text-purple-600">kcal</p>
+                </div>
+                <div className="text-right">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                    metaActiva.tipo_meta === "perdida"
+                      ? "bg-blue-500 text-white"
+                      : "bg-green-500 text-white"
+                  }`}>
+                    {metaActiva.tipo_meta === "perdida" ? "📉 Pérdida" : "📈 Ganancia"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/50 p-2 rounded-lg">
+                  <p className="text-xs text-purple-600">Actual</p>
+                  <p className="font-bold text-purple-900">{metaActiva.peso_actual} kg</p>
+                </div>
+                <div className="bg-white/50 p-2 rounded-lg">
+                  <p className="text-xs text-purple-600">Objetivo</p>
+                  <p className="font-bold text-purple-900">{metaActiva.peso_objetivo} kg</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Progreso de calorías del día vs meta */}
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Calorías consumidas hoy</span>
+                <span>{kcalHoy} / {Math.round(metaActiva.meta_calorica_diaria)} kcal</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    (kcalHoy / metaActiva.meta_calorica_diaria) * 100 > 100
+                      ? 'bg-gradient-to-r from-red-400 to-red-600'
+                      : 'bg-gradient-to-r from-purple-400 to-purple-600'
+                  }`}
+                  style={{width: `${Math.min(100, (kcalHoy / metaActiva.meta_calorica_diaria) * 100)}%`}}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {kcalHoy < metaActiva.meta_calorica_diaria
+                  ? `Te quedan ${Math.round(metaActiva.meta_calorica_diaria - kcalHoy)} kcal disponibles`
+                  : `Has excedido tu meta por ${Math.round(kcalHoy - metaActiva.meta_calorica_diaria)} kcal`
+                }
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-gray-50 p-3 rounded-lg">
+              <span className="text-gray-600">Días restantes</span>
+              <span className="font-bold text-purple-700">{metaActiva.dias_restantes} días</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-2xl shadow-md border border-purple-200">
+            <div className="text-center">
+              <div className="text-4xl mb-3">🎯</div>
+              <h3 className="font-bold text-lg text-purple-900 mb-2">
+                Establece tu Meta de Peso
+              </h3>
+              <p className="text-sm text-purple-700 mb-4">
+                Configura tu objetivo y recibe un plan calórico personalizado
+              </p>
+              <button
+                onClick={() => navigate('/configurar-meta')}
+                className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Configurar Meta
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* IMC (Índice de Masa Corporal) */}
         {imc && categoriaIMC && (

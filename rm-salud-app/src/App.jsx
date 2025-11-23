@@ -16,6 +16,8 @@ import ComidaNueva from './paginas/ComidaNueva';
 import Perfil from './paginas/Perfil';
 import PaginaOfertas from './paginas/PaginaOfertas';
 import MapaRecursos from './componentes/MapaRecursos';
+import ConfigurarMeta from './paginas/ConfigurarMeta';
+import ProgresoMeta from './paginas/ProgresoMeta';
 
 // Admin pages
 import AdminUsuarios from './paginas/AdminUsuarios';
@@ -246,6 +248,8 @@ export default function App() {
         <Route path="/ofertas" element={<PaginaOfertas />} />
         <Route path="/mapa" element={<MapaRecursos />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="/configurar-meta" element={<ConfigurarMeta />} />
+        <Route path="/progreso-meta" element={<ProgresoMeta />} />
       </Route>
       
       {/* Admin routes */}
