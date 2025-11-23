@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { metasApi } from "../servicios/metasApi";
+import { alimentacionApi } from "../servicios/alimentacionApi";
+import { actividadApi } from "../servicios/actividadApi";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer } from 'recharts';
 
 export default function ProgresoMeta() {
   const navigate = useNavigate();
@@ -8,10 +11,14 @@ export default function ProgresoMeta() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [archivando, setArchivando] = useState(false);
+  const [foodData, setFoodData] = useState([]);
+  const [activityData, setActivityData] = useState([]);
+  const [loadingChart, setLoadingChart] = useState(true);
 
   useEffect(() => {
     document.title = 'Progreso Meta - RM Salud';
     cargarMeta();
+    cargarDatosHistoricos();
   }, []);
 
   const cargarMeta = async () => {
@@ -30,6 +37,22 @@ export default function ProgresoMeta() {
     }
   };
 
+  const cargarDatosHistoricos = async () => {
+    try {
+      setLoadingChart(true);
+      const [foodRes, actRes] = await Promise.all([
+        alimentacionApi.list(),
+        actividadApi.list()
+      ]);
+      setFoodData(foodRes.data || []);
+      setActivityData(actRes.data || []);
+    } catch (err) {
+      console.error("Error cargando datos históricos:", err);
+    } finally {
+      setLoadingChart(false);
+    }
+  };
+
   const handleArchivar = async () => {
     if (!meta) return;
 
@@ -45,6 +68,77 @@ export default function ProgresoMeta() {
       setArchivando(false);
     }
   };
+
+  // Agregar datos de calorías por día
+  const chartData = useMemo(() => {
+    if (!foodData.length && !activityData.length) return [];
+
+    const dailyTotals = {};
+
+    // Agrupar calorías consumidas por día
+    foodData.forEach(entry => {
+      const date = entry.fecha?.split('T')[0]; // YYYY-MM-DD
+      if (!date) return;
+
+      if (!dailyTotals[date]) {
+        dailyTotals[date] = { date, consumidas: 0, quemadas: 0 };
+      }
+      dailyTotals[date].consumidas += entry.calorias || 0;
+    });
+
+    // Agrupar calorías quemadas por día
+    activityData.forEach(entry => {
+      const date = entry.fecha?.split('T')[0];
+      if (!date) return;
+
+      if (!dailyTotals[date]) {
+        dailyTotals[date] = { date, consumidas: 0, quemadas: 0 };
+      }
+      dailyTotals[date].quemadas += entry.calorias || 0;
+    });
+
+    // Convertir a array y calcular calorías netas
+    const data = Object.values(dailyTotals)
+      .map(day => ({
+        date: day.date,
+        calorias: day.consumidas - day.quemadas,
+        meta: meta?.meta_calorica_diaria || 0
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Limitar a últimos 30 días
+    return data.slice(-30);
+  }, [foodData, activityData, meta]);
+
+  // Calcular análisis acumulativo de calorías
+  const analisisAcumulativo = useMemo(() => {
+    if (!meta || !chartData.length) return null;
+
+    // Calcular total de calorías consumidas hasta hoy
+    const totalConsumido = chartData.reduce((acc, day) => acc + day.calorias, 0);
+
+    // Calcular cuántos días han transcurrido desde el inicio de la meta
+    // El día de creación cuenta como día 1, no como día 0
+    const diasTranscurridos = meta.dias_totales - meta.dias_restantes + 1;
+
+    // Calcular lo que debería haber consumido hasta hoy
+    const deberiaHaberConsumido = meta.meta_calorica_diaria * diasTranscurridos;
+
+    // Calcular diferencia
+    const diferencia = totalConsumido - deberiaHaberConsumido;
+    const porcentajeDiferencia = deberiaHaberConsumido > 0
+      ? (diferencia / deberiaHaberConsumido) * 100
+      : 0;
+
+    return {
+      totalConsumido: Math.round(totalConsumido),
+      deberiaHaberConsumido: Math.round(deberiaHaberConsumido),
+      diferencia: Math.round(diferencia),
+      porcentajeDiferencia: Math.round(porcentajeDiferencia),
+      diasTranscurridos,
+      estaPorEncima: diferencia > 0
+    };
+  }, [chartData, meta]);
 
   if (loading) {
     return (
@@ -229,6 +323,141 @@ export default function ProgresoMeta() {
               {meta.nivel_actividad.replace('_', ' ')}
             </p>
           </div>
+        </div>
+
+        {/* Gráfico de Progreso Calórico */}
+        <div className="bg-white p-6 rounded-2xl shadow-md">
+          <h3 className="font-bold text-lg text-gray-800 mb-4">Progreso Calórico Diario</h3>
+
+          {loadingChart ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>No hay datos suficientes para mostrar el gráfico.</p>
+              <p className="text-sm mt-2">Registra tu alimentación y actividad física para ver tu progreso.</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(date) => {
+                    const d = new Date(date);
+                    return `${d.getDate()}/${d.getMonth() + 1}`;
+                  }}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    padding: '8px'
+                  }}
+                  formatter={(value, name) => {
+                    if (name === 'calorias') return [`${Math.round(value)} kcal`, 'Calorías Netas'];
+                    if (name === 'meta') return [`${Math.round(value)} kcal`, 'Meta Diaria'];
+                    return value;
+                  }}
+                  labelFormatter={(date) => {
+                    const d = new Date(date);
+                    return d.toLocaleDateString('es-ES', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short'
+                    });
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: '10px' }}
+                  formatter={(value) => {
+                    if (value === 'calorias') return 'Calorías Netas';
+                    if (value === 'meta') return 'Meta Diaria';
+                    return value;
+                  }}
+                />
+                <ReferenceLine
+                  y={meta?.meta_calorica_diaria}
+                  stroke="#9333ea"
+                  strokeDasharray="5 5"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="calorias"
+                  stroke="#f97316"
+                  strokeWidth={3}
+                  dot={{ fill: '#f97316', r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+
+          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-xs text-orange-800">
+              <strong>📊 Nota:</strong> El gráfico muestra tus calorías netas diarias (consumidas - quemadas por ejercicio) vs tu meta calórica.
+              Los datos mostrados corresponden a los últimos 30 días.
+            </p>
+          </div>
+
+          {/* Análisis Acumulativo */}
+          {analisisAcumulativo && (
+            <div className={`mt-4 p-4 rounded-lg border-2 ${
+              analisisAcumulativo.estaPorEncima
+                ? 'bg-red-50 border-red-300'
+                : 'bg-green-50 border-green-300'
+            }`}>
+              <div className="flex items-start">
+                <span className="text-3xl mr-3">
+                  {analisisAcumulativo.estaPorEncima ? '⚠️' : '✅'}
+                </span>
+                <div className="flex-1">
+                  <h4 className={`font-bold text-base mb-2 ${
+                    analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'
+                  }`}>
+                    {analisisAcumulativo.estaPorEncima
+                      ? 'Estás consumiendo más calorías de las esperadas'
+                      : 'Vas bien con tu consumo calórico'}
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <p className={analisisAcumulativo.estaPorEncima ? 'text-red-700' : 'text-green-700'}>
+                      En los últimos <strong>{analisisAcumulativo.diasTranscurridos} días</strong> has consumido{' '}
+                      <strong>{analisisAcumulativo.totalConsumido.toLocaleString()} kcal</strong>, pero según tu meta deberías haber consumido{' '}
+                      <strong>{analisisAcumulativo.deberiaHaberConsumido.toLocaleString()} kcal</strong>.
+                    </p>
+                    <p className={`font-semibold ${analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'}`}>
+                      {analisisAcumulativo.estaPorEncima ? (
+                        <>
+                          Estás <strong>{Math.abs(analisisAcumulativo.diferencia).toLocaleString()} kcal por encima</strong> de lo esperado
+                          ({Math.abs(analisisAcumulativo.porcentajeDiferencia)}% más).
+                        </>
+                      ) : (
+                        <>
+                          Estás <strong>{Math.abs(analisisAcumulativo.diferencia).toLocaleString()} kcal por debajo</strong> de lo esperado
+                          ({Math.abs(analisisAcumulativo.porcentajeDiferencia)}% menos).
+                        </>
+                      )}
+                    </p>
+                    {analisisAcumulativo.estaPorEncima && meta.tipo_meta === 'perdida' && (
+                      <p className="text-xs text-red-600 mt-2 italic">
+                        💡 Consejo: Para mantener tu meta de pérdida de peso, intenta ajustar tu alimentación o incrementar tu actividad física.
+                      </p>
+                    )}
+                    {!analisisAcumulativo.estaPorEncima && meta.tipo_meta === 'perdida' && (
+                      <p className="text-xs text-green-600 mt-2 italic">
+                        💡 ¡Excelente! Continúa así para alcanzar tu objetivo de peso.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tarjeta de Validación del Ritmo */}

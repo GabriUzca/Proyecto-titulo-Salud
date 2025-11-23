@@ -170,12 +170,22 @@ export default function ComidaLista() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => remove(i.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors ml-2"
-                  >
-                    🗑️
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => navigate(`/comida/editar/${i.id}`)}
+                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2 rounded-lg transition-colors"
+                      title="Editar comida"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => remove(i.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                      title="Eliminar comida"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

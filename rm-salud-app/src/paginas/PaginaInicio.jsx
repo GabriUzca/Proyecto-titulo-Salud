@@ -156,15 +156,63 @@ export default function PaginaInicio() {
     [act]
   );
 
+  const kcalConsumidasHoy = useMemo(
+    () => food.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
+    [food]
+  );
+
   const kcalQuemadasHoy = useMemo(
     () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
     [act]
   );
 
   const kcalNetasHoy = useMemo(() => {
-    const consumidas = food.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0);
-    return consumidas - kcalQuemadasHoy;
-  }, [food, kcalQuemadasHoy]);
+    return kcalConsumidasHoy - kcalQuemadasHoy;
+  }, [kcalConsumidasHoy, kcalQuemadasHoy]);
+
+  // Calcular análisis acumulativo desde el inicio de la meta
+  const analisisAcumulativo = useMemo(() => {
+    if (!metaActiva || !food.length) return null;
+
+    // Calcular días transcurridos (día de hoy cuenta como día 1)
+    const diasTranscurridos = metaActiva.dias_totales - metaActiva.dias_restantes + 1;
+
+    // Obtener la fecha de inicio de la meta
+    const fechaInicioMeta = new Date(metaActiva.fecha_inicio);
+    fechaInicioMeta.setHours(0, 0, 0, 0);
+
+    // Filtrar solo comidas y actividades desde el inicio de la meta
+    const foodDesdeMeta = food.filter(item => {
+      const fechaItem = new Date(item.fecha);
+      fechaItem.setHours(0, 0, 0, 0);
+      return fechaItem >= fechaInicioMeta;
+    });
+
+    const actDesdeMeta = act.filter(item => {
+      const fechaItem = new Date(item.fecha);
+      fechaItem.setHours(0, 0, 0, 0);
+      return fechaItem >= fechaInicioMeta;
+    });
+
+    // Calcular total consumido desde el inicio de la meta
+    const totalConsumidasAcumulado = foodDesdeMeta.reduce((acc, item) => acc + (item.calorias || 0), 0);
+    const totalQuemadasAcumulado = actDesdeMeta.reduce((acc, item) => acc + (item.calorias || 0), 0);
+    const totalNetasAcumulado = totalConsumidasAcumulado - totalQuemadasAcumulado;
+
+    // Calcular lo que debería haber consumido
+    const deberiaHaberConsumido = metaActiva.meta_calorica_diaria * diasTranscurridos;
+
+    // Diferencia
+    const diferencia = totalNetasAcumulado - deberiaHaberConsumido;
+
+    return {
+      diasTranscurridos,
+      totalNetasAcumulado: Math.round(totalNetasAcumulado),
+      deberiaHaberConsumido: Math.round(deberiaHaberConsumido),
+      diferencia: Math.round(diferencia),
+      estaPorEncima: diferencia > 0
+    };
+  }, [metaActiva, food, act]);
 
   // Filtrar recursos cercanos (dentro de 40 km)
   const recursosCercanos = useMemo(() => {
@@ -401,6 +449,9 @@ export default function PaginaInicio() {
               </div>
               <p className="font-bold text-2xl text-teal-900">{minutosHoy}</p>
               <p className="text-xs text-teal-600">minutos</p>
+              {kcalQuemadasHoy > 0 && (
+                <p className="text-xs text-orange-600 font-semibold mt-1">🔥 {kcalQuemadasHoy} kcal</p>
+              )}
             </div>
 
             {/* Calorías */}
@@ -411,7 +462,7 @@ export default function PaginaInicio() {
                 </div>
                 <span className="ml-2 text-xs text-orange-700 font-medium">Calorías</span>
               </div>
-              <p className="font-bold text-2xl text-orange-900">{kcalHoy}</p>
+              <p className="font-bold text-2xl text-orange-900">{kcalConsumidasHoy}</p>
               <p className="text-xs text-orange-600">kcal</p>
             </div>
           </div>
@@ -504,6 +555,42 @@ export default function PaginaInicio() {
               <span className="text-gray-600">Días restantes</span>
               <span className="font-bold text-purple-700">{metaActiva.dias_restantes} días</span>
             </div>
+
+            {/* Análisis Acumulativo */}
+            {analisisAcumulativo && (
+              <div className={`mt-3 p-3 rounded-lg border ${
+                analisisAcumulativo.estaPorEncima
+                  ? 'bg-red-50 border-red-300'
+                  : 'bg-green-50 border-green-300'
+              }`}>
+                <div className="flex items-start">
+                  <span className="text-xl mr-2">
+                    {analisisAcumulativo.estaPorEncima ? '⚠️' : '✅'}
+                  </span>
+                  <div className="flex-1">
+                    <p className={`text-xs font-semibold mb-1 ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'
+                    }`}>
+                      {analisisAcumulativo.estaPorEncima
+                        ? 'Estás consumiendo más calorías de las esperadas'
+                        : 'Vas bien con tu consumo calórico'}
+                    </p>
+                    <p className={`text-xs ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-700' : 'text-green-700'
+                    }`}>
+                      En los últimos <strong>{analisisAcumulativo.diasTranscurridos} días</strong> has consumido{' '}
+                      <strong>{analisisAcumulativo.totalNetasAcumulado.toLocaleString()} kcal</strong>, pero deberías haber consumido{' '}
+                      <strong>{analisisAcumulativo.deberiaHaberConsumido.toLocaleString()} kcal</strong>.
+                    </p>
+                    <p className={`text-xs font-semibold mt-1 ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'
+                    }`}>
+                      Estás <strong>{Math.abs(analisisAcumulativo.diferencia).toLocaleString()} kcal {analisisAcumulativo.estaPorEncima ? 'por encima' : 'por debajo'}</strong> de lo esperado.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-2xl shadow-md border border-purple-200">
@@ -750,6 +837,9 @@ export default function PaginaInicio() {
                   <div className="text-right">
                     <p className="font-bold text-teal-600">{a.duracion_min}</p>
                     <p className="text-xs text-gray-500">min</p>
+                    {a.calorias && (
+                      <p className="text-xs text-orange-600 font-semibold mt-1">🔥 {a.calorias} kcal</p>
+                    )}
                   </div>
                 </div>
               ))

@@ -37,10 +37,10 @@ function LayoutConNavegacion() {
   const getActiveButton = (path) => {
     const currentPath = location.pathname;
     if (path === '/actividad') {
-      return currentPath === '/actividad' || currentPath === '/actividad/nueva';
+      return currentPath === '/actividad' || currentPath === '/actividad/nueva' || currentPath.startsWith('/actividad/editar/');
     }
     if (path === '/comida') {
-      return currentPath === '/comida' || currentPath === '/comida/nueva';
+      return currentPath === '/comida' || currentPath === '/comida/nueva' || currentPath.startsWith('/comida/editar/');
     }
     return currentPath === path;
   };
@@ -243,8 +243,10 @@ export default function App() {
         <Route path="/inicio" element={<PaginaInicio />} />
         <Route path="/actividad" element={<ActividadLista />} />
         <Route path="/actividad/nueva" element={<ActividadNueva />} />
+        <Route path="/actividad/editar/:id" element={<ActividadNueva />} />
         <Route path="/comida" element={<ComidaLista />} />
         <Route path="/comida/nueva" element={<ComidaNueva />} />
+        <Route path="/comida/editar/:id" element={<ComidaNueva />} />
         <Route path="/ofertas" element={<PaginaOfertas />} />
         <Route path="/mapa" element={<MapaRecursos />} />
         <Route path="/perfil" element={<Perfil />} />

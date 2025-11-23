@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { actividadApi } from "../servicios/actividadApi";
 import { IconoCasa, IconoPisadas, IconoLlama, IconoUsuario } from "../componentes/iconos";
 
 export default function ActividadNueva() {
   const navigate = useNavigate();
+  const { id } = useParams(); // Get ID from URL if editing
+  const esEdicion = Boolean(id);
+
   const [form, setForm] = useState({
     tipo: "caminar",
     duracion_min: "",
@@ -13,22 +16,53 @@ export default function ActividadNueva() {
   });
   const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(esEdicion);
 
   useEffect(() => {
-    document.title = 'Nueva Actividad - RM Salud';
-  }, []);
+    document.title = esEdicion ? 'Editar Actividad - RM Salud' : 'Nueva Actividad - RM Salud';
+
+    // Load existing data if editing
+    if (esEdicion) {
+      cargarActividad();
+    }
+  }, [esEdicion]);
+
+  const cargarActividad = async () => {
+    try {
+      setLoadingData(true);
+      const { data } = await actividadApi.list();
+      const actividad = data.find(a => a.id === parseInt(id));
+
+      if (actividad) {
+        setForm({
+          tipo: actividad.tipo,
+          duracion_min: actividad.duracion_min,
+          calorias: actividad.calorias || "",
+          fecha: actividad.fecha.split('T')[0]
+        });
+      } else {
+        setMsg("❌ Actividad no encontrada");
+        setTimeout(() => navigate("/actividad"), 2000);
+      }
+    } catch (err) {
+      setMsg("❌ Error al cargar actividad");
+      setTimeout(() => navigate("/actividad"), 2000);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setMsg(null);
-    
+
     if (!form.duracion_min || !form.fecha) {
       setMsg("Por favor completa los campos obligatorios");
       return;
     }
-    
+
     try {
       setLoading(true);
       const payload = {
@@ -37,8 +71,15 @@ export default function ActividadNueva() {
         calorias: form.calorias ? Number(form.calorias) : null,
         fecha: form.fecha
       };
-      await actividadApi.create(payload);
-      setMsg("✅ Actividad guardada");
+
+      if (esEdicion) {
+        await actividadApi.update(id, payload);
+        setMsg("✅ Actividad actualizada");
+      } else {
+        await actividadApi.create(payload);
+        setMsg("✅ Actividad guardada");
+      }
+
       // Navegar al dashboard para ver los totales actualizados
       setTimeout(() => navigate("/inicio"), 1500);
     } catch (err) {
@@ -48,18 +89,29 @@ export default function ActividadNueva() {
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando actividad...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">{/* pb-20 para navbar */}
       {/* Header */}
       <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-6 rounded-b-3xl shadow-xl mb-6">
         <div className="flex items-center">
-          <button 
+          <button
             onClick={() => navigate('/actividad')}
             className="mr-3 p-2 hover:bg-teal-400 rounded-full transition-colors"
           >
-            ← 
+            ←
           </button>
-          <h2 className="text-2xl font-bold">Nueva Actividad</h2>
+          <h2 className="text-2xl font-bold">{esEdicion ? 'Editar Actividad' : 'Nueva Actividad'}</h2>
         </div>
       </div>
 
@@ -150,7 +202,7 @@ export default function ActividadNueva() {
                 disabled={loading}
                 className="flex-1 bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {loading ? "Guardando..." : "Guardar"}
+                {loading ? "Guardando..." : (esEdicion ? "Actualizar" : "Guardar")}
               </button>
             </div>
           </form>

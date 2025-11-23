@@ -143,7 +143,17 @@ export default function ActividadLista() {
                     <div className="text-right">
                       <p className="font-bold text-2xl text-teal-600">{a.duracion_min}</p>
                       <p className="text-xs text-gray-500">minutos</p>
+                      {a.calorias && (
+                        <p className="text-xs text-orange-600 font-semibold mt-1">🔥 {a.calorias} kcal</p>
+                      )}
                     </div>
+                    <button
+                      onClick={() => navigate(`/actividad/editar/${a.id}`)}
+                      className="p-2 hover:bg-teal-50 rounded-lg transition-colors text-teal-600 hover:text-teal-700"
+                      title="Editar actividad"
+                    >
+                      ✏️
+                    </button>
                     <button
                       onClick={() => remove(a.id)}
                       className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-500 hover:text-red-700"
