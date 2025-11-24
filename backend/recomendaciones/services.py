@@ -161,19 +161,21 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
         }
 
     elif tipo_meta == 'ganancia':
-        # Para subir de peso: ferias, mercados, supermercados, restaurantes
+        # Para subir de peso: ferias, mercados, supermercados, restaurantes, patios de comida
         queries = [
             f'node["amenity"="marketplace"](around:{radius_m},{lat},{lng})',
             f'node["shop"="supermarket"](around:{radius_m},{lat},{lng})',
             f'node["amenity"="restaurant"](around:{radius_m},{lat},{lng})',
+            f'node["amenity"="food_court"](around:{radius_m},{lat},{lng})',
             f'node["shop"="bakery"](around:{radius_m},{lat},{lng})',
             f'node["shop"="convenience"](around:{radius_m},{lat},{lng})',
         ]
         poi_config = {
             'marketplace': {'tipo': 'feria', 'prioridad': 10, 'icono': 'market'},
             'supermarket': {'tipo': 'supermercado', 'prioridad': 9, 'icono': 'supermarket'},
-            'restaurant': {'tipo': 'restaurante', 'prioridad': 7, 'icono': 'restaurant'},
-            'bakery': {'tipo': 'panaderia', 'prioridad': 8, 'icono': 'bakery'},
+            'restaurant': {'tipo': 'restaurante', 'prioridad': 8, 'icono': 'restaurant'},
+            'food_court': {'tipo': 'patio_comidas', 'prioridad': 8, 'icono': 'restaurant'},
+            'bakery': {'tipo': 'panaderia', 'prioridad': 7, 'icono': 'bakery'},
             'convenience': {'tipo': 'tienda', 'prioridad': 6, 'icono': 'shop'},
         }
 
@@ -227,32 +229,32 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
         if not poi_lat or not poi_lng:
             continue
 
-        # Determinar tipo de POI
-        poi_type = None
+        # Determinar tipo de POI basado en tags específicos
         config = None
 
-        for key, value in tags.items():
-            if value in poi_config:
-                poi_type = value
-                config = poi_config[value]
-                break
+        # Priorizar amenity (restaurantes, ferias, patios de comida)
+        if 'amenity' in tags:
+            amenity_type = tags['amenity']
+            if amenity_type in poi_config:
+                config = poi_config[amenity_type]
 
-        if not config:
-            # Intentar determinar por tag
-            if 'leisure' in tags:
-                leisure_type = tags['leisure']
-                if leisure_type in poi_config:
-                    config = poi_config[leisure_type]
-            elif 'amenity' in tags:
-                amenity_type = tags['amenity']
-                if amenity_type in poi_config:
-                    config = poi_config[amenity_type]
-            elif 'shop' in tags:
-                shop_type = tags['shop']
-                if shop_type in poi_config:
-                    config = poi_config[shop_type]
-            elif 'highway' in tags and tags['highway'] == 'cycleway':
-                config = poi_config.get('cycleway')
+        # Luego shop (supermercados, panaderías, tiendas)
+        if not config and 'shop' in tags:
+            shop_type = tags['shop']
+            if shop_type in poi_config:
+                config = poi_config[shop_type]
+
+        # Luego leisure (gimnasios, parques, centros deportivos)
+        if not config and 'leisure' in tags:
+            leisure_type = tags['leisure']
+            if leisure_type in poi_config:
+                config = poi_config[leisure_type]
+
+        # Finalmente highway (ciclovías)
+        if not config and 'highway' in tags:
+            highway_type = tags['highway']
+            if highway_type in poi_config:
+                config = poi_config[highway_type]
 
         if not config:
             continue

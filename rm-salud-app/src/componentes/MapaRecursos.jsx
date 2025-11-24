@@ -169,6 +169,22 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
   const [eventosAprobados, setEventosAprobados] = useState([]);
   const [cargandoEventos, setCargandoEventos] = useState(false);
   const [errorEventos, setErrorEventos] = useState(null);
+  const [filtrosVisible, setFiltrosVisible] = useState(false);
+  const [filtros, setFiltros] = useState({
+    ticketmaster: true,
+    locales: true,
+    recursos: true,
+    // POIs segmentados por tipo
+    gym: true,
+    sports: true,
+    park: true,
+    bike: true,
+    market: true,
+    supermarket: true,
+    restaurant: true,
+    bakery: true,
+    shop: true
+  });
   const mapControllerRef = useRef();
 
   useEffect(() => {
@@ -240,6 +256,58 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
     }
   }));
 
+  // Función para cambiar filtros
+  const toggleFiltro = (key) => {
+    setFiltros(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Seleccionar todos los filtros
+  const seleccionarTodos = () => {
+    setFiltros({
+      ticketmaster: true,
+      locales: true,
+      recursos: true,
+      gym: true,
+      sports: true,
+      park: true,
+      bike: true,
+      market: true,
+      supermarket: true,
+      restaurant: true,
+      bakery: true,
+      shop: true
+    });
+  };
+
+  // Deseleccionar todos los filtros
+  const deseleccionarTodos = () => {
+    setFiltros({
+      ticketmaster: false,
+      locales: false,
+      recursos: false,
+      gym: false,
+      sports: false,
+      park: false,
+      bike: false,
+      market: false,
+      supermarket: false,
+      restaurant: false,
+      bakery: false,
+      shop: false
+    });
+  };
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filtrosVisible && !e.target.closest('.filtros-container')) {
+        setFiltrosVisible(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [filtrosVisible]);
+
   const puntos = useMemo(() => {
     const base = (recursos || []).filter(r => typeof r.lat === "number" && typeof r.lng === "number");
     const eventosTicket = (eventosTicketmaster || []).filter(e => typeof e.lat === "number" && typeof e.lng === "number");
@@ -265,6 +333,20 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
     ? [posUsuario.lat, posUsuario.lng]
     : [-33.4489, -70.6693];
 
+  // Calcular totales visibles según filtros
+  const poisVisibles = pois.filter(poi => {
+    const iconoKey = poi.icono || 'default';
+    return filtros[iconoKey] === true;
+  });
+
+  const totalesVisibles = {
+    pois: poisVisibles.length,
+    ticketmaster: filtros.ticketmaster ? eventosTicketmaster.length : 0,
+    locales: filtros.locales ? eventosAprobados.length : 0,
+    recursos: filtros.recursos ? recursos.length : 0
+  };
+  const totalVisible = Object.values(totalesVisibles).reduce((a, b) => a + b, 0);
+
   return (
     <div style={{ width: "100%", position: "relative" }}>
       {/* Información de estado */}
@@ -281,15 +363,267 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
         }}>
           <span>
             {cargandoEventos && "🔄 Cargando eventos..."}
-            {!cargandoEventos && (eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0 || pois.length > 0) && `🎫 ${eventosTicketmaster.length + eventosAprobados.length + recursos.length + pois.length} lugares encontrados`}
-            {!cargandoEventos && eventosTicketmaster.length === 0 && eventosAprobados.length === 0 && recursos.length === 0 && pois.length === 0 && !errorEventos && "📍 No hay lugares cerca"}
+            {!cargandoEventos && totalVisible > 0 && `🎫 ${totalVisible} lugares encontrados`}
+            {!cargandoEventos && totalVisible === 0 && !errorEventos && "📍 No hay lugares cerca"}
             {errorEventos && `⚠️ ${errorEventos}`}
           </span>
-          {(eventosTicketmaster.length > 0 || eventosAprobados.length > 0 || recursos.length > 0 || pois.length > 0) && (
-            <span style={{ fontSize: 12, color: "#6c757d" }}>
-              Radio: {radioKm} km
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {totalVisible > 0 && (
+              <span style={{ fontSize: 12, color: "#6c757d" }}>
+                Radio: {radioKm} km
+              </span>
+            )}
+            {/* Botón de filtros */}
+            <div className="filtros-container" style={{ position: 'relative' }}>
+              <button
+                onClick={() => setFiltrosVisible(!filtrosVisible)}
+                style={{
+                  padding: '4px 10px',
+                  background: filtrosVisible ? '#6f42c1' : 'white',
+                  color: filtrosVisible ? 'white' : '#6c757d',
+                  border: '1px solid #dee2e6',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                🔽 Filtros
+              </button>
+
+              {/* Dropdown de filtros */}
+              {filtrosVisible && (
+                <div style={{
+                  position: 'fixed',
+                  top: 'auto',
+                  right: '10px',
+                  bottom: '20px',
+                  background: 'white',
+                  border: '1px solid #dee2e6',
+                  borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  padding: 12,
+                  minWidth: 260,
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                  zIndex: 1001
+                }}>
+                  {/* Título y botones de control */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 'bold', marginBottom: 8, color: '#495057' }}>
+                      Mostrar en mapa:
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={seleccionarTodos}
+                        style={{
+                          flex: 1,
+                          padding: '4px 8px',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✓ Todos
+                      </button>
+                      <button
+                        onClick={deseleccionarTodos}
+                        style={{
+                          flex: 1,
+                          padding: '4px 8px',
+                          background: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✗ Ninguno
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Separador */}
+                  <div style={{ borderTop: '1px solid #dee2e6', marginBottom: 8 }}></div>
+
+                  {/* POIs Personalizados - Actividades Físicas */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 'bold', color: '#6c757d', marginBottom: 4, textTransform: 'uppercase' }}>
+                      Actividades Físicas
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.gym}
+                        onChange={() => toggleFiltro('gym')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🏋️ Gimnasios ({pois.filter(p => p.icono === 'gym').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.sports}
+                        onChange={() => toggleFiltro('sports')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        ⚽ Centros deportivos ({pois.filter(p => p.icono === 'sports').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.park}
+                        onChange={() => toggleFiltro('park')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🌳 Parques ({pois.filter(p => p.icono === 'park').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.bike}
+                        onChange={() => toggleFiltro('bike')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🚴 Ciclovías ({pois.filter(p => p.icono === 'bike').length})
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* POIs Personalizados - Alimentación */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 'bold', color: '#6c757d', marginBottom: 4, textTransform: 'uppercase' }}>
+                      Alimentación
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.market}
+                        onChange={() => toggleFiltro('market')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🛒 Ferias ({pois.filter(p => p.icono === 'market').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.supermarket}
+                        onChange={() => toggleFiltro('supermarket')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🏪 Supermercados ({pois.filter(p => p.icono === 'supermarket').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.restaurant}
+                        onChange={() => toggleFiltro('restaurant')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🍽️ Restaurantes ({pois.filter(p => p.icono === 'restaurant').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.bakery}
+                        onChange={() => toggleFiltro('bakery')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🥖 Panaderías ({pois.filter(p => p.icono === 'bakery').length})
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={filtros.shop}
+                        onChange={() => toggleFiltro('shop')}
+                        style={{ marginRight: 8, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#495057' }}>
+                        🏬 Tiendas ({pois.filter(p => p.icono === 'shop').length})
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Separador */}
+                  <div style={{ borderTop: '1px solid #dee2e6', marginY: 8 }}></div>
+
+                  {/* Otros filtros */}
+                  <div style={{ fontSize: 11, fontWeight: 'bold', color: '#6c757d', marginBottom: 4, marginTop: 8, textTransform: 'uppercase' }}>
+                    Eventos y Recursos
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={filtros.ticketmaster}
+                      onChange={() => toggleFiltro('ticketmaster')}
+                      style={{ marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, color: '#495057' }}>
+                      🎫 Eventos Ticketmaster ({eventosTicketmaster.length})
+                    </span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={filtros.locales}
+                      onChange={() => toggleFiltro('locales')}
+                      style={{ marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, color: '#495057' }}>
+                      🎉 Eventos Locales ({eventosAprobados.length})
+                    </span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={filtros.recursos}
+                      onChange={() => toggleFiltro('recursos')}
+                      style={{ marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, color: '#495057' }}>
+                      📍 Recursos Locales ({recursos.length})
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -303,7 +637,7 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
           />
 
           {/* Marcadores de recursos originales */}
-          {recursos?.map((r, i) => (
+          {filtros.recursos && recursos?.map((r, i) => (
             (typeof r.lat === "number" && typeof r.lng === "number") && (
               <Marker key={`recurso-${i}`} position={[r.lat, r.lng]} icon={DefaultIcon}>
                 <Popup>
@@ -316,7 +650,7 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
           ))}
 
           {/* Marcadores de eventos de Ticketmaster */}
-          {eventosTicketmaster?.map((evento, i) => (
+          {filtros.ticketmaster && eventosTicketmaster?.map((evento, i) => (
             (typeof evento.lat === "number" && typeof evento.lng === "number") && (
               <Marker key={`evento-${evento.id}-${i}`} position={[evento.lat, evento.lng]} icon={EventIcon}>
                 <Popup maxWidth={300}>
@@ -359,7 +693,7 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
           ))}
 
           {/* Marcadores de eventos aprobados locales */}
-          {eventosAprobados?.map((evento, i) => {
+          {filtros.locales && eventosAprobados?.map((evento, i) => {
             // Convertir strings a números si es necesario (compatibilidad con backend)
             const lat = typeof evento.latitud === 'string' ? parseFloat(evento.latitud) : evento.latitud;
             const lng = typeof evento.longitud === 'string' ? parseFloat(evento.longitud) : evento.longitud;
@@ -411,6 +745,10 @@ const MapaRecursos = forwardRef(({ recursos, pois = [], alto = 260, mostrarEvent
           {/* Marcadores de POIs personalizados */}
           {pois?.map((poi, i) => {
             if (typeof poi.lat !== "number" || typeof poi.lng !== "number") return null;
+
+            // Filtrar por tipo de icono específico
+            const iconoKey = poi.icono || 'default';
+            if (!filtros[iconoKey]) return null;
 
             const icon = POIIcons[poi.icono] || POIIcons.default;
 

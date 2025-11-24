@@ -723,6 +723,45 @@ export default function PaginaInicio() {
               onUbicacionActualizada={setPosUsuario}
             />
           </div>
+
+          {/* Mensaje educativo sobre POIs personalizados */}
+          {metaActiva && pois.length > 0 && (
+            <div className={`p-4 rounded-lg mb-4 ${
+              metaActiva.tipo_meta === 'perdida' ? 'bg-blue-50 border border-blue-200' :
+              metaActiva.tipo_meta === 'ganancia' ? 'bg-green-50 border border-green-200' :
+              'bg-gray-50 border border-gray-200'
+            }`}>
+              <div className="flex items-start">
+                <span className="text-2xl mr-3">
+                  {metaActiva.tipo_meta === 'perdida' ? '🏋️' :
+                   metaActiva.tipo_meta === 'ganancia' ? '🍽️' : '⚖️'}
+                </span>
+                <div>
+                  <h4 className={`font-semibold text-sm mb-1 ${
+                    metaActiva.tipo_meta === 'perdida' ? 'text-blue-900' :
+                    metaActiva.tipo_meta === 'ganancia' ? 'text-green-900' :
+                    'text-gray-900'
+                  }`}>
+                    {metaActiva.tipo_meta === 'perdida' ? 'Lugares para Actividad Física' :
+                     metaActiva.tipo_meta === 'ganancia' ? 'Lugares para Alimentación' :
+                     'Lugares para Balance'}
+                  </h4>
+                  <p className={`text-xs ${
+                    metaActiva.tipo_meta === 'perdida' ? 'text-blue-800' :
+                    metaActiva.tipo_meta === 'ganancia' ? 'text-green-800' :
+                    'text-gray-700'
+                  }`}>
+                    {metaActiva.tipo_meta === 'perdida' ?
+                      'Te mostramos gimnasios, parques y centros deportivos para ayudarte a aumentar tu actividad física y alcanzar tu meta de pérdida de peso.' :
+                     metaActiva.tipo_meta === 'ganancia' ?
+                      'Te mostramos supermercados, ferias y restaurantes para ayudarte a aumentar tu ingesta calórica de forma saludable y alcanzar tu meta de ganancia de peso.' :
+                      'Te mostramos una variedad de lugares para mantener un estilo de vida balanceado.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ul className="space-y-2">
             {recursosYEventos.map((item, i) => (
               item.icono ? (
