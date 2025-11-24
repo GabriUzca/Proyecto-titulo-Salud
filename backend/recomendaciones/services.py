@@ -207,6 +207,12 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
     # Consultar Overpass API
     elements = consultar_overpass_api(lat, lng, radius_m, queries)
 
+    # DEBUG: Ver qué devuelve Overpass
+    print(f"\n=== DEBUG OVERPASS API ===")
+    print(f"Total elementos recibidos: {len(elements)}")
+    print(f"Tipo de meta: {tipo_meta}")
+    print(f"POI config keys: {list(poi_config.keys())}")
+
     # Procesar y formatear resultados
     pois = []
     for element in elements:
@@ -232,32 +238,48 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
         # Determinar tipo de POI basado en tags específicos
         config = None
 
+        # DEBUG: Ver tags de cada elemento
+        nombre_debug = tags.get('name', 'Sin nombre')
+        print(f"\nProcesando: {nombre_debug}")
+        print(f"  Tags: {tags}")
+
         # Priorizar amenity (restaurantes, ferias, patios de comida)
         if 'amenity' in tags:
             amenity_type = tags['amenity']
+            print(f"  Tiene amenity={amenity_type}, en poi_config? {amenity_type in poi_config}")
             if amenity_type in poi_config:
                 config = poi_config[amenity_type]
+                print(f"  ✓ Matcheó como amenity: {amenity_type}")
 
         # Luego shop (supermercados, panaderías, tiendas)
         if not config and 'shop' in tags:
             shop_type = tags['shop']
+            print(f"  Tiene shop={shop_type}, en poi_config? {shop_type in poi_config}")
             if shop_type in poi_config:
                 config = poi_config[shop_type]
+                print(f"  ✓ Matcheó como shop: {shop_type}")
 
         # Luego leisure (gimnasios, parques, centros deportivos)
         if not config and 'leisure' in tags:
             leisure_type = tags['leisure']
+            print(f"  Tiene leisure={leisure_type}, en poi_config? {leisure_type in poi_config}")
             if leisure_type in poi_config:
                 config = poi_config[leisure_type]
+                print(f"  ✓ Matcheó como leisure: {leisure_type}")
 
         # Finalmente highway (ciclovías)
         if not config and 'highway' in tags:
             highway_type = tags['highway']
+            print(f"  Tiene highway={highway_type}, en poi_config? {highway_type in poi_config}")
             if highway_type in poi_config:
                 config = poi_config[highway_type]
+                print(f"  ✓ Matcheó como highway: {highway_type}")
 
         if not config:
+            print(f"  ✗ NO matcheó - descartado")
             continue
+
+        print(f"  ✓ AGREGADO como {config['tipo']}")
 
         # Obtener nombre
         nombre = tags.get('name', 'Sin nombre')
@@ -277,6 +299,16 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
 
     # Ordenar por prioridad
     pois.sort(key=lambda x: x['prioridad'], reverse=True)
+
+    # DEBUG: Resumen final
+    print(f"\n=== RESUMEN FINAL ===")
+    print(f"Total POIs agregados: {len(pois)}")
+    tipos_count = {}
+    for poi in pois:
+        tipo = poi['tipo']
+        tipos_count[tipo] = tipos_count.get(tipo, 0) + 1
+    print(f"Por tipo: {tipos_count}")
+    print(f"========================\n")
 
     return {
         'tipo_meta': tipo_meta,

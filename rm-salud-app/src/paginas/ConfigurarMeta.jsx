@@ -51,8 +51,7 @@ export default function ConfigurarMeta() {
 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    // Limpiar advertencias al cambiar valores
-    setAdvertencias([]);
+    // Solo limpiar mensajes de error, no las advertencias (se recalculan automáticamente)
     setMsg(null);
   };
 
