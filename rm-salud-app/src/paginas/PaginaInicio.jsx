@@ -163,7 +163,19 @@ export default function PaginaInicio() {
           posUsuario.lng,
           5 // 5 km de radio
         );
-        setPois(response.data?.pois || []);
+        console.log('=== DEBUG FRONTEND POIs ===');
+        console.log('Response completa:', response.data);
+        console.log('Total POIs recibidos:', response.data?.pois?.length || 0);
+
+        const poisRecibidos = response.data?.pois || [];
+        console.log('POIs por icono:', poisRecibidos.reduce((acc, p) => {
+          acc[p.icono] = (acc[p.icono] || 0) + 1;
+          return acc;
+        }, {}));
+        console.log('Restaurantes encontrados:', poisRecibidos.filter(p => p.icono === 'restaurant'));
+        console.log('===========================');
+
+        setPois(poisRecibidos);
       } catch (error) {
         console.error('Error cargando POIs personalizados:', error);
         setPois([]);

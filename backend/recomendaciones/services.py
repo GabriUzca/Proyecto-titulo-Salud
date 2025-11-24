@@ -297,22 +297,43 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
             'tags': tags
         })
 
-    # Ordenar por prioridad
-    pois.sort(key=lambda x: x['prioridad'], reverse=True)
+    # Agrupar POIs por tipo para asegurar diversidad
+    pois_por_tipo = {}
+    for poi in pois:
+        tipo = poi['tipo']
+        if tipo not in pois_por_tipo:
+            pois_por_tipo[tipo] = []
+        pois_por_tipo[tipo].append(poi)
+
+    # Ordenar cada grupo por prioridad
+    for tipo in pois_por_tipo:
+        pois_por_tipo[tipo].sort(key=lambda x: x['prioridad'], reverse=True)
+
+    # Tomar hasta 10 POIs de cada tipo para asegurar variedad
+    pois_balanceados = []
+    for tipo, lista_pois in pois_por_tipo.items():
+        pois_balanceados.extend(lista_pois[:10])
+
+    # Ordenar el resultado final por prioridad
+    pois_balanceados.sort(key=lambda x: x['prioridad'], reverse=True)
+
+    # Limitar a 50 resultados totales
+    pois_finales = pois_balanceados[:50]
 
     # DEBUG: Resumen final
     print(f"\n=== RESUMEN FINAL ===")
-    print(f"Total POIs agregados: {len(pois)}")
+    print(f"Total POIs encontrados: {len(pois)}")
+    print(f"Total POIs después de balancear: {len(pois_finales)}")
     tipos_count = {}
-    for poi in pois:
+    for poi in pois_finales:
         tipo = poi['tipo']
         tipos_count[tipo] = tipos_count.get(tipo, 0) + 1
-    print(f"Por tipo: {tipos_count}")
+    print(f"Por tipo (final): {tipos_count}")
     print(f"========================\n")
 
     return {
         'tipo_meta': tipo_meta,
         'nivel_actividad': nivel_actividad,
-        'total': len(pois),
-        'pois': pois[:50]  # Limitar a 50 resultados
+        'total': len(pois_finales),
+        'pois': pois_finales
     }
