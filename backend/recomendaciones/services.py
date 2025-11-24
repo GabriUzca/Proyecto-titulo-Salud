@@ -119,13 +119,14 @@ def get_poi_recommendations(user, lat, lng, radius_km=5):
     """
     from metas.models import MetaPeso
 
-    # Obtener la meta activa del usuario
+    # Obtener la meta activa del usuario (la más reciente que esté activa)
     try:
-        meta = MetaPeso.objects.filter(user=user).order_by('-fecha_objetivo').first()
+        meta = MetaPeso.objects.filter(user=user, activo=True).order_by('-created_at').first()
         if not meta:
             return {
                 'error': 'No se encontró una meta de peso activa',
-                'pois': []
+                'pois': [],
+                'total': 0
             }
 
         tipo_meta = meta.tipo_meta  # 'perdida', 'ganancia', 'mantenimiento'
