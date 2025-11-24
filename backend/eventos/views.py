@@ -277,13 +277,13 @@ class EventosAprobadosView(generics.ListAPIView):
         fecha_limite = fecha_actual + timedelta(days=dias_futuros)
 
         # Incluir eventos que:
-        # 1. Su fecha_inicio es futura (dentro del rango)
-        # 2. O están en curso (fecha_inicio <= hoy y fecha_fin >= hoy o fecha_fin es None)
+        # 1. Su fecha_inicio es futura (dentro del rango), OR
+        # 2. Están en curso (fecha_inicio < hoy AND fecha_fin >= hoy)
+        # Excluir eventos donde fecha_inicio < hoy AND fecha_fin is None
         from django.db.models import Q
         queryset = queryset.filter(
-            fecha_inicio__lte=fecha_limite
-        ).filter(
-            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fecha_actual)
+            Q(fecha_inicio__gte=fecha_actual, fecha_inicio__lte=fecha_limite) |  # Eventos futuros
+            Q(fecha_inicio__lt=fecha_actual, fecha_fin__gte=fecha_actual)  # Eventos en curso
         )
 
         # Filtrar por distancia

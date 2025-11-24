@@ -627,7 +627,7 @@ export default function PaginaInicio() {
                 Configura tu objetivo y recibe un plan calórico personalizado
               </p>
               <button
-                onClick={() => window.location.href = '/configurar-meta'}
+                onClick={() => navigate('/configurar-meta')}
                 className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors"
               >
                 Configurar Meta

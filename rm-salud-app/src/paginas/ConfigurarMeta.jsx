@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 
 export default function ConfigurarMeta() {
   const navigate = useNavigate();
-  const { usuario } = useAuth();
+  const { usuario, cargando: cargandoAuth } = useAuth();
   const [form, setForm] = useState({
     peso_actual: "",
     peso_objetivo: "",
@@ -19,31 +19,30 @@ export default function ConfigurarMeta() {
 
   useEffect(() => {
     document.title = 'Configurar Meta - RM Salud';
-    cargarMetaActual();
   }, []);
 
-  // Actualizar peso actual cuando el usuario se carga
+  // Cargar meta actual solo cuando el usuario ya esté disponible
   useEffect(() => {
-    if (usuario?.peso && !form.peso_actual) {
-      setForm(f => ({ ...f, peso_actual: usuario.peso }));
+    if (!cargandoAuth && usuario) {
+      cargarMetaActual();
     }
-  }, [usuario]);
+  }, [cargandoAuth, usuario]);
 
   const cargarMetaActual = async () => {
     try {
       const { data } = await metasApi.getActiva();
       // Si tiene meta activa, pre-llenar el formulario con datos actuales
       setForm({
-        peso_actual: data.peso_actual || usuario?.peso || "",
+        peso_actual: data.peso_actual || usuario.peso || "",
         peso_objetivo: data.peso_objetivo || "",
         fecha_objetivo: data.fecha_objetivo || "",
         nivel_actividad: data.nivel_actividad || "sedentario"
       });
     } catch (err) {
-      // Si no hay meta activa, usar el peso del perfil si existe
+      // Si no hay meta activa, usar el peso del perfil
       setForm(f => ({
         ...f,
-        peso_actual: usuario?.peso || ""
+        peso_actual: usuario.peso || ""
       }));
     } finally {
       setCargandoActual(false);
@@ -158,7 +157,7 @@ export default function ConfigurarMeta() {
     }
   };
 
-  if (cargandoActual) {
+  if (cargandoAuth || cargandoActual) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
