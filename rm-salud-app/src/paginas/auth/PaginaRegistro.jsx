@@ -18,21 +18,81 @@ const PaginaRegistro = ({ alRegistrarse }) => {
 
 const onSubmit = async (e) => {
   e.preventDefault();
+  setError(null);
+  setExito(null);
+
+  // Validación de campos vacíos
+  if (!username || !email || !password || !confirm) {
+    setError('Todos los campos son obligatorios');
+    return;
+  }
+
+  // Validación de contraseñas
   if (password !== confirm) {
     setError('Las contraseñas no coinciden');
     return;
   }
+
+  // Validación de longitud de contraseña
+  if (password.length < 8) {
+    setError('La contraseña debe tener al menos 8 caracteres');
+    return;
+  }
+
   try {
     await alRegistrarse({ username, email, password });
     setExito('¡Registro exitoso! Redirigiendo…');
     setTimeout(() => navigate('/inicio'), 800);
   } catch (err) {
-    if (err.response?.data?.password) {
-      setError(err.response.data.password[0]); // muestra: "Asegúrate de que este campo tenga al menos 8 caracteres."
-    } else if (err.response?.data?.email) {
-      setError(err.response.data.email[0]); // ej: "Este correo ya está registrado."
+    console.error('Error en registro:', err.response?.data);
+
+    // Manejo específico de errores del backend
+    if (err.response?.data) {
+      const errorData = err.response.data;
+
+      // Error en el nombre de usuario
+      if (errorData.username) {
+        if (Array.isArray(errorData.username)) {
+          const usernameError = errorData.username[0];
+          if (usernameError.includes('already exists') || usernameError.includes('ya existe')) {
+            setError('Este nombre de usuario ya está en uso. Por favor elige otro.');
+          } else {
+            setError(usernameError);
+          }
+        } else {
+          setError('Error con el nombre de usuario');
+        }
+      }
+      // Error en el email
+      else if (errorData.email) {
+        if (Array.isArray(errorData.email)) {
+          const emailError = errorData.email[0];
+          if (emailError.includes('already exists') || emailError.includes('ya está registrado')) {
+            setError('Este correo electrónico ya está registrado. ¿Ya tienes una cuenta?');
+          } else {
+            setError(emailError);
+          }
+        } else {
+          setError('Error con el correo electrónico');
+        }
+      }
+      // Error en la contraseña
+      else if (errorData.password) {
+        if (Array.isArray(errorData.password)) {
+          setError(errorData.password[0]);
+        } else {
+          setError('Error con la contraseña');
+        }
+      }
+      // Error genérico del backend
+      else if (errorData.message || errorData.error) {
+        setError(errorData.message || errorData.error);
+      }
+      else {
+        setError('Error al registrar usuario. Por favor verifica tus datos.');
+      }
     } else {
-      setError('Error al registrar usuario');
+      setError('Error de conexión. Por favor intenta nuevamente.');
     }
   }
 };
@@ -74,11 +134,22 @@ const onSubmit = async (e) => {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      {exito && <p className="text-green-600 text-sm">{exito}</p>} {/* 👈 nuevo */}
-      <div className="mt-6">
-        <BotonAccion>Crear cuenta</BotonAccion>
-      </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        {exito && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+            {exito}
+          </div>
+        )}
+
+        <div className="mt-6">
+          <BotonAccion>Crear cuenta</BotonAccion>
+        </div>
       </form>
 
       <div className="mt-auto text-center py-4">

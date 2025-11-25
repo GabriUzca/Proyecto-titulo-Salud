@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'alimentacion',
     'recomendaciones',
     'eventos',
+    'metas',
 ]
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
@@ -130,3 +131,13 @@ CORS_ALLOW_CREDENTIALS = True
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# ── Email Configuration ─────────────────────────────────────────────────────────
+# Configuración para envío de emails usando Gmail SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # Tu email de Gmail
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # App Password de Gmail
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@example.com')

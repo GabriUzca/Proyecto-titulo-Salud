@@ -24,6 +24,17 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Función para obtener fecha/hora actual en formato datetime-local
+const getMinDateTime = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 // Componente para capturar clics en el mapa
 function LocationMarker({ position, setPosition, setFormData }) {
   useMapEvents({
@@ -255,6 +266,7 @@ const SolicitarEvento = () => {
                       name="fecha_inicio"
                       value={formData.fecha_inicio}
                       onChange={handleInputChange}
+                      min={getMinDateTime()}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
@@ -266,6 +278,7 @@ const SolicitarEvento = () => {
                       name="fecha_fin"
                       value={formData.fecha_fin}
                       onChange={handleInputChange}
+                      min={formData.fecha_inicio || getMinDateTime()}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>

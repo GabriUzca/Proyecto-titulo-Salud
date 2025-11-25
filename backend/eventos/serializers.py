@@ -8,6 +8,9 @@ class EventRequestSerializer(serializers.ModelSerializer):
     Serializer para crear solicitudes de eventos (sin autenticación)
     """
     respondido_por_nombre = serializers.SerializerMethodField()
+    # Especificar explícitamente como DecimalField para que se serialice como número
+    latitud = serializers.DecimalField(max_digits=9, decimal_places=6, coerce_to_string=False)
+    longitud = serializers.DecimalField(max_digits=9, decimal_places=6, coerce_to_string=False)
 
     class Meta:
         model = EventRequest
@@ -40,6 +43,7 @@ class EventRequestSerializer(serializers.ModelSerializer):
             'comentarios_admin',
             'respondido_por',
             'respondido_por_nombre',
+            'codigo_seguimiento',
         ]
         read_only_fields = [
             'id',
@@ -49,6 +53,7 @@ class EventRequestSerializer(serializers.ModelSerializer):
             'comentarios_admin',
             'respondido_por',
             'respondido_por_nombre',
+            'codigo_seguimiento',
         ]
 
     def get_respondido_por_nombre(self, obj):

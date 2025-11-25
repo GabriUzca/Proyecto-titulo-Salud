@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { alimentacionApi } from "../servicios/alimentacionApi";
 import { IconoCasa, IconoPisadas, IconoLlama, IconoUsuario } from "../componentes/iconos";
 
 export default function ComidaNueva() {
   const navigate = useNavigate();
+  const { id } = useParams(); // Get ID from URL if editing
+  const esEdicion = Boolean(id);
+
   const [form, setForm] = useState({
     nombre: "",
     calorias: "",
@@ -13,22 +16,53 @@ export default function ComidaNueva() {
   });
   const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(esEdicion);
 
   useEffect(() => {
-    document.title = 'Nueva Comida - RM Salud';
-  }, []);
+    document.title = esEdicion ? 'Editar Comida - RM Salud' : 'Nueva Comida - RM Salud';
+
+    // Load existing data if editing
+    if (esEdicion) {
+      cargarComida();
+    }
+  }, [esEdicion]);
+
+  const cargarComida = async () => {
+    try {
+      setLoadingData(true);
+      const { data } = await alimentacionApi.list();
+      const comida = data.find(c => c.id === parseInt(id));
+
+      if (comida) {
+        setForm({
+          nombre: comida.nombre,
+          calorias: comida.calorias,
+          horario: comida.horario,
+          fecha: comida.fecha.split('T')[0]
+        });
+      } else {
+        setMsg("❌ Comida no encontrada");
+        setTimeout(() => navigate("/comida"), 2000);
+      }
+    } catch (err) {
+      setMsg("❌ Error al cargar comida");
+      setTimeout(() => navigate("/comida"), 2000);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setMsg(null);
-    
+
     if (!form.nombre || !form.calorias || !form.fecha) {
       setMsg("Por favor completa todos los campos obligatorios");
       return;
     }
-    
+
     try {
       setLoading(true);
       const payload = {
@@ -37,29 +71,47 @@ export default function ComidaNueva() {
         horario: form.horario,
         fecha: form.fecha
       };
-      await alimentacionApi.create(payload);
-      setMsg("✅ Comida registrada");
+
+      if (esEdicion) {
+        await alimentacionApi.update(id, payload);
+        setMsg("✅ Comida actualizada");
+      } else {
+        await alimentacionApi.create(payload);
+        setMsg("✅ Comida registrada");
+      }
+
       // Navegar al dashboard para ver los totales actualizados
       setTimeout(() => navigate("/inicio"), 1500);
     } catch (err) {
-      setMsg("❌ Error al registrar: " + (err.response?.data?.detail || err.message));
+      setMsg("❌ Error al guardar: " + (err.response?.data?.detail || err.message));
     } finally {
       setLoading(false);
     }
   };
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando comida...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">{/* pb-20 para navbar */}
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-b-3xl shadow-xl mb-6">
         <div className="flex items-center">
-          <button 
+          <button
             onClick={() => navigate('/comida')}
             className="mr-3 p-2 hover:bg-orange-400 rounded-full transition-colors"
           >
-            ← 
+            ←
           </button>
-          <h2 className="text-2xl font-bold">Registrar Comida</h2>
+          <h2 className="text-2xl font-bold">{esEdicion ? 'Editar Comida' : 'Registrar Comida'}</h2>
         </div>
       </div>
 
@@ -148,7 +200,7 @@ export default function ComidaNueva() {
                 disabled={loading}
                 className="flex-1 bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {loading ? "Guardando..." : "Guardar"}
+                {loading ? "Guardando..." : (esEdicion ? "Actualizar" : "Guardar")}
               </button>
             </div>
           </form>

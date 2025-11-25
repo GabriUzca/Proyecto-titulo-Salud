@@ -186,7 +186,7 @@ export default function AdminEventos() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <button
-              onClick={() => navigate('/inicio')}
+              onClick={() => navigate('/admin/menu')}
               className="mr-3 p-2 hover:bg-teal-500 rounded-full transition-colors"
             >
               ←

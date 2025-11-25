@@ -6,7 +6,7 @@ from .models import UserProfile
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ('edad', 'peso', 'altura', 'sexo', 'foto')
+        fields = ('edad', 'peso', 'altura', 'sexo')
 
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
@@ -21,22 +21,34 @@ class UserSerializer(serializers.ModelSerializer):
         #                                                   ⭐ AGREGADO is_staff, edad, peso, altura, sexo
 
     def get_profile(self, obj):
+        # Intentar obtener el perfil de la relación cargada primero
+        if hasattr(obj, 'profile'):
+            return UserProfileSerializer(obj.profile).data
+        # Si no está cargado, crear o obtener
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return UserProfileSerializer(profile).data
 
     def get_edad(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.edad
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.edad
 
     def get_peso(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.peso
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.peso
 
     def get_altura(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.altura
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.altura
 
     def get_sexo(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.sexo
         profile, created = UserProfile.objects.get_or_create(user=obj)
         return profile.sexo
 
@@ -90,6 +102,16 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         UserProfile.objects.get_or_create(user=user)
+
+        # Enviar email de bienvenida si el usuario tiene email
+        if user.email:
+            try:
+                from .email_service import enviar_email_bienvenida
+                enviar_email_bienvenida(user)
+            except Exception as e:
+                # Log del error pero no fallar el registro
+                print(f"Error al enviar email de bienvenida: {e}")
+
         return user
 
 
@@ -98,13 +120,12 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     peso = serializers.FloatField(required=False, min_value=0, allow_null=True)
     altura = serializers.FloatField(required=False, min_value=0, allow_null=True)
     sexo = serializers.CharField(required=False, allow_null=True)
-    foto = serializers.ImageField(required=False, allow_null=True)
     first_name = serializers.CharField(required=False, source='user.first_name')
     last_name = serializers.CharField(required=False, source='user.last_name')
 
     class Meta:
         model = UserProfile
-        fields = ["first_name", "last_name", "edad", "peso", "altura", "sexo", "foto"]
+        fields = ["first_name", "last_name", "edad", "peso", "altura", "sexo"]
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})

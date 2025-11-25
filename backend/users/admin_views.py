@@ -116,12 +116,56 @@ class UserAdminViewSet(viewsets.ModelViewSet):
                 if val == '':
                     val = None
                 setattr(profile, field, val)
+
+        # Actualizar sexo si viene en el payload
+        if 'sexo' in request.data:
+            sexo_val = request.data.get('sexo')
+            # Permitir vacío (None) o valores válidos (M, F, O)
+            if sexo_val in ['M', 'F', 'O', '', None]:
+                profile.sexo = sexo_val if sexo_val else None
+
         profile.save()
 
         serializer = self.get_serializer(user)
         return Response({
             "message": "Usuario actualizado exitosamente",
             "user": serializer.data
+        })
+
+    @action(detail=True, methods=['get'])
+    def actividades(self, request, pk=None):
+        """
+        Obtiene todas las actividades del usuario
+        GET /api/admin/users/{id}/actividades/
+        """
+        user = self.get_object()
+        actividades = user.actividades.all().order_by('-fecha')
+
+        # Serializar actividades
+        from actividad.serializers import ActividadSerializer
+        serializer = ActividadSerializer(actividades, many=True)
+
+        return Response({
+            "count": actividades.count(),
+            "actividades": serializer.data
+        })
+
+    @action(detail=True, methods=['get'])
+    def comidas(self, request, pk=None):
+        """
+        Obtiene todas las comidas del usuario
+        GET /api/admin/users/{id}/comidas/
+        """
+        user = self.get_object()
+        comidas = user.comidas.all().order_by('-fecha')
+
+        # Serializar comidas
+        from alimentacion.serializers import ComidaSerializer
+        serializer = ComidaSerializer(comidas, many=True)
+
+        return Response({
+            "count": comidas.count(),
+            "comidas": serializer.data
         })
 
     @action(detail=False, methods=['get'])

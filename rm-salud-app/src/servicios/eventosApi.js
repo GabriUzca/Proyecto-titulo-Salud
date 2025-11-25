@@ -3,7 +3,7 @@ import api from "./http";
 
 // Cliente sin autenticación para solicitudes públicas
 const publicApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
 });
 
 /**
@@ -20,7 +20,45 @@ const publicApi = axios.create({
  * @returns {Promise} Respuesta con la solicitud creada
  */
 export const crearSolicitudEvento = async (eventData) => {
-  const response = await publicApi.post("/eventos/solicitar/", eventData);
+  const response = await publicApi.post("/api/eventos/solicitar/", eventData);
+  return response.data;
+};
+
+/**
+ * Buscar eventos aprobados por ubicación geográfica
+ * @param {number} lat - Latitud del centro de búsqueda
+ * @param {number} lng - Longitud del centro de búsqueda
+ * @param {number} radio - Radio de búsqueda en kilómetros (default: 40)
+ * @param {number} diasFuturos - Días hacia el futuro para filtrar (default: 90)
+ * @returns {Promise} Respuesta con lista de eventos aprobados cercanos
+ */
+export const buscarEventosAprobados = async (
+  lat,
+  lng,
+  radio = 40,
+  diasFuturos = 90
+) => {
+  const response = await publicApi.get("/api/eventos/aprobados/", {
+    params: {
+      lat,
+      lng,
+      radio,
+      dias_futuros: diasFuturos,
+    },
+  });
+  return response.data;
+};
+
+/**
+ * Consultar estado de una solicitud por código de seguimiento
+ * @param {string} codigo - Código de seguimiento (12 caracteres alfanuméricos)
+ * @returns {Promise} Respuesta con los datos de la solicitud
+ */
+export const consultarSolicitudPorCodigo = async (codigo) => {
+  if (!codigo || codigo.trim().length === 0) {
+    throw new Error("El código de seguimiento es obligatorio");
+  }
+  const response = await publicApi.get(`/api/eventos/consultar/${codigo.trim().toUpperCase()}/`);
   return response.data;
 };
 
@@ -36,7 +74,7 @@ export const crearSolicitudEvento = async (eventData) => {
  * @returns {Promise} Respuesta con lista de solicitudes
  */
 export const listarSolicitudesEventos = async (params = {}) => {
-  const response = await api.get("/eventos/admin/", { params });
+  const response = await api.get("/api/eventos/admin/", { params });
   return response.data;
 };
 
@@ -46,7 +84,7 @@ export const listarSolicitudesEventos = async (params = {}) => {
  * @returns {Promise} Respuesta con el detalle de la solicitud
  */
 export const obtenerSolicitudEvento = async (id) => {
-  const response = await api.get(`/eventos/admin/${id}/`);
+  const response = await api.get(`/api/eventos/admin/${id}/`);
   return response.data;
 };
 
@@ -57,7 +95,7 @@ export const obtenerSolicitudEvento = async (id) => {
  * @returns {Promise} Respuesta con la solicitud aprobada
  */
 export const aprobarSolicitudEvento = async (id, comentarios = "") => {
-  const response = await api.post(`/eventos/admin/${id}/aprobar/`, {
+  const response = await api.post(`/api/eventos/admin/${id}/aprobar/`, {
     comentarios_admin: comentarios,
   });
   return response.data;
@@ -73,7 +111,7 @@ export const rechazarSolicitudEvento = async (id, motivo) => {
   if (!motivo) {
     throw new Error("El motivo de rechazo es obligatorio");
   }
-  const response = await api.post(`/eventos/admin/${id}/rechazar/`, {
+  const response = await api.post(`/api/eventos/admin/${id}/rechazar/`, {
     comentarios_admin: motivo,
   });
   return response.data;
@@ -86,7 +124,7 @@ export const rechazarSolicitudEvento = async (id, motivo) => {
  * @returns {Promise} Respuesta con la solicitud actualizada
  */
 export const actualizarSolicitudEvento = async (id, eventData) => {
-  const response = await api.patch(`/eventos/admin/${id}/`, eventData);
+  const response = await api.patch(`/api/eventos/admin/${id}/`, eventData);
   return response.data;
 };
 
@@ -96,7 +134,7 @@ export const actualizarSolicitudEvento = async (id, eventData) => {
  * @returns {Promise} Respuesta de la eliminación
  */
 export const eliminarSolicitudEvento = async (id) => {
-  const response = await api.delete(`/eventos/admin/${id}/`);
+  const response = await api.delete(`/api/eventos/admin/${id}/`);
   return response.data;
 };
 
@@ -105,6 +143,6 @@ export const eliminarSolicitudEvento = async (id) => {
  * @returns {Promise} Respuesta con estadísticas
  */
 export const obtenerEstadisticasEventos = async () => {
-  const response = await api.get("/eventos/admin/statistics/");
+  const response = await api.get("/api/eventos/admin/statistics/");
   return response.data;
 };

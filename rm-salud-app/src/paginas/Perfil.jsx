@@ -12,9 +12,9 @@ export default function Perfil() {
     last_name: "",
     edad: "",
     peso: "",
-    altura: ""
+    altura: "",
+    sexo: ""
   });
-  const [foto, setFoto] = useState(null);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,6 +32,7 @@ export default function Perfil() {
           edad: data.profile?.edad ?? "",
           peso: data.profile?.peso ?? "",
           altura: data.profile?.altura ?? "",
+          sexo: data.profile?.sexo || ""
         });
       })
       .catch(() => setStatus("❌ Error al cargar perfil"))
@@ -45,11 +46,8 @@ export default function Perfil() {
     setStatus(null);
     try {
       setSaving(true);
-      const payload = { ...form };
-      if (foto) payload.foto = foto;
-      await perfilApi.updateMe(payload);
+      await perfilApi.updateMe(form);
       setStatus("✅ Perfil actualizado");
-      setFoto(null);
       setTimeout(() => setStatus(null), 3000);
     } catch {
       setStatus("❌ Error al actualizar");
@@ -82,11 +80,11 @@ export default function Perfil() {
       <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-6 rounded-b-3xl shadow-xl mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <button 
+            <button
               onClick={() => navigate('/inicio')}
               className="mr-3 p-2 hover:bg-teal-400 rounded-full transition-colors"
             >
-              ← 
+              ←
             </button>
             <h2 className="text-2xl font-bold">Mi Perfil</h2>
           </div>
@@ -108,8 +106,8 @@ export default function Perfil() {
               <IconoUsuario className="w-12 h-12 text-teal-600" />
             </div>
             <h3 className="text-xl font-bold text-gray-800">
-              {form.first_name || form.last_name 
-                ? `${form.first_name} ${form.last_name}`.trim() 
+              {form.first_name || form.last_name
+                ? `${form.first_name} ${form.last_name}`.trim()
                 : 'Usuario'}
             </h3>
           </div>
@@ -128,7 +126,7 @@ export default function Perfil() {
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
               />
             </div>
-            
+
             {/* Apellido */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -142,7 +140,7 @@ export default function Perfil() {
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
               />
             </div>
-            
+
             {/* Grid para datos físicos */}
             <div className="grid grid-cols-3 gap-3">
               {/* Edad */}
@@ -162,7 +160,7 @@ export default function Perfil() {
                 />
                 <span className="text-xs text-gray-500 block text-center mt-1">años</span>
               </div>
-              
+
               {/* Peso */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -180,7 +178,7 @@ export default function Perfil() {
                 />
                 <span className="text-xs text-gray-500 block text-center mt-1">kg</span>
               </div>
-              
+
               {/* Altura */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -199,25 +197,25 @@ export default function Perfil() {
                 <span className="text-xs text-gray-500 block text-center mt-1">cm</span>
               </div>
             </div>
-            
-            {/* Foto */}
+
+            {/* Sexo */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Foto de perfil (opcional)
+                Sexo
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFoto(e.target.files?.[0] || null)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-              />
-              {foto && (
-                <p className="text-xs text-teal-600 mt-1">
-                  ✓ Archivo seleccionado: {foto.name}
-                </p>
-              )}
+              <select
+                name="sexo"
+                value={form.sexo}
+                onChange={onChange}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              >
+                <option value="">Seleccionar...</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
             </div>
-            
+
             {/* Botón guardar */}
             <button
               type="submit"
@@ -227,12 +225,12 @@ export default function Perfil() {
               {saving ? "Guardando..." : "Guardar Cambios"}
             </button>
           </form>
-          
+
           {/* Mensaje de estado */}
           {status && (
             <div className={`mt-4 p-3 rounded-lg text-center text-sm font-medium ${
               status.includes('Error') || status.includes('❌')
-                ? 'bg-red-50 text-red-700 border border-red-200' 
+                ? 'bg-red-50 text-red-700 border border-red-200'
                 : 'bg-green-50 text-green-700 border border-green-200'
             }`}>
               {status}
@@ -270,7 +268,7 @@ export default function Perfil() {
               <IconoCasa className="w-6 h-6 mb-1" />
               <span className="text-xs font-medium">Inicio</span>
             </button>
-            
+
             <button
               onClick={() => navigate('/actividad')}
               className="flex flex-col items-center justify-center transition-all duration-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
@@ -278,7 +276,7 @@ export default function Perfil() {
               <IconoPisadas className="w-6 h-6 mb-1" />
               <span className="text-xs font-medium">Actividad</span>
             </button>
-            
+
             <button
               onClick={() => navigate('/comida')}
               className="flex flex-col items-center justify-center transition-all duration-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
@@ -286,7 +284,7 @@ export default function Perfil() {
               <IconoLlama className="w-6 h-6 mb-1" />
               <span className="text-xs font-medium">Comida</span>
             </button>
-            
+
             <button
               onClick={() => navigate('/perfil')}
               className="flex flex-col items-center justify-center transition-all duration-200 text-teal-600 bg-teal-50"

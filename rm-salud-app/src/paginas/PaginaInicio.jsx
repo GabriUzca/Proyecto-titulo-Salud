@@ -5,6 +5,7 @@ import { actividadApi } from "../servicios/actividadApi";
 import { alimentacionApi } from "../servicios/alimentacionApi";
 import { recomendacionesApi } from "../servicios/recomendacionesApi";
 import { buscarEventosPorUbicacion } from "../servicios/ticketmasterApi";
+import { metasApi } from "../servicios/metasApi";
 import MapaRecursos from "../componentes/MapaRecursos";
 import { IconoCampana, IconoUsuario, IconoLlama, IconoGota, IconoPisadas, IconoCasa } from '../componentes/iconos';
 
@@ -47,8 +48,11 @@ export default function PaginaInicio() {
   const [food, setFood] = useState([]);
   const [recs, setRecs] = useState([]);
   const [eventosTicketmaster, setEventosTicketmaster] = useState([]);
+  const [eventosAprobados, setEventosAprobados] = useState([]);
+  const [pois, setPois] = useState([]);
   const [posUsuario, setPosUsuario] = useState(null);
   const [mostrarTodosEventos, setMostrarTodosEventos] = useState(false);
+  const [metaActiva, setMetaActiva] = useState(null);
   const mapaRef = useRef();
   const mapaContainerRef = useRef();
 
@@ -74,6 +78,15 @@ export default function PaginaInicio() {
         setAct(a.data || []);
         setFood(f.data || []);
         setRecs(r.data?.items || []);
+
+        // Cargar meta activa (si existe)
+        try {
+          const metaRes = await metasApi.getActiva();
+          if (mounted) setMetaActiva(metaRes.data);
+        } catch (err) {
+          // Si no hay meta activa (404), no hacer nada
+          if (mounted) setMetaActiva(null);
+        }
       } catch (err) {
         console.error("Error cargando datos:", err);
       } finally {
@@ -139,15 +152,89 @@ export default function PaginaInicio() {
     cargarEventos();
   }, [posUsuario]);
 
+  // Cargar POIs personalizados cuando se obtiene la ubicación y hay meta activa
+  useEffect(() => {
+    if (!posUsuario || !metaActiva) return;
+
+    const cargarPOIs = async () => {
+      try {
+        const response = await recomendacionesApi.poi(
+          posUsuario.lat,
+          posUsuario.lng,
+          5 // 5 km de radio
+        );
+        setPois(response.data?.pois || []);
+      } catch (error) {
+        console.error('Error cargando POIs personalizados:', error);
+        setPois([]);
+      }
+    };
+
+    cargarPOIs();
+  }, [posUsuario, metaActiva]);
+
   const minutosHoy = useMemo(
     () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.duracion_min || 0), 0),
     [act]
   );
-  
-  const kcalHoy = useMemo(
+
+  const kcalConsumidasHoy = useMemo(
     () => food.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
     [food]
   );
+
+  const kcalQuemadasHoy = useMemo(
+    () => act.filter(x => esHoy(x.fecha)).reduce((acc, x) => acc + (x.calorias || 0), 0),
+    [act]
+  );
+
+  const kcalNetasHoy = useMemo(() => {
+    return kcalConsumidasHoy - kcalQuemadasHoy;
+  }, [kcalConsumidasHoy, kcalQuemadasHoy]);
+
+  // Calcular análisis acumulativo desde el inicio de la meta
+  const analisisAcumulativo = useMemo(() => {
+    if (!metaActiva || !food.length) return null;
+
+    // Calcular días transcurridos (día de hoy cuenta como día 1)
+    const diasTranscurridos = metaActiva.dias_totales - metaActiva.dias_restantes + 1;
+
+    // Obtener la fecha de inicio de la meta
+    const fechaInicioMeta = new Date(metaActiva.fecha_inicio);
+    fechaInicioMeta.setHours(0, 0, 0, 0);
+
+    // Filtrar solo comidas y actividades desde el inicio de la meta
+    const foodDesdeMeta = food.filter(item => {
+      const fechaItem = new Date(item.fecha);
+      fechaItem.setHours(0, 0, 0, 0);
+      return fechaItem >= fechaInicioMeta;
+    });
+
+    const actDesdeMeta = act.filter(item => {
+      const fechaItem = new Date(item.fecha);
+      fechaItem.setHours(0, 0, 0, 0);
+      return fechaItem >= fechaInicioMeta;
+    });
+
+    // Calcular total consumido desde el inicio de la meta
+    const totalConsumidasAcumulado = foodDesdeMeta.reduce((acc, item) => acc + (item.calorias || 0), 0);
+    const totalQuemadasAcumulado = actDesdeMeta.reduce((acc, item) => acc + (item.calorias || 0), 0);
+    const totalNetasAcumulado = totalConsumidasAcumulado - totalQuemadasAcumulado;
+
+    // Calcular lo que debería haber consumido
+    const deberiaHaberConsumido = metaActiva.meta_calorica_diaria * diasTranscurridos;
+
+    // Diferencia
+    const diferencia = totalNetasAcumulado - deberiaHaberConsumido;
+
+    return {
+      diasTranscurridos,
+      totalNetasAcumulado: Math.round(totalNetasAcumulado),
+      deberiaHaberConsumido: Math.round(deberiaHaberConsumido),
+      diferencia: Math.round(diferencia),
+      estaPorEncima: diferencia > 0
+    };
+  }, [metaActiva, food, act]);
 
   // Filtrar recursos cercanos (dentro de 40 km)
   const recursosCercanos = useMemo(() => {
@@ -168,27 +255,41 @@ export default function PaginaInicio() {
     });
   }, [recs, posUsuario]);
 
-  // Combinar recursos locales cercanos y eventos de Ticketmaster
+  // Callback para recibir eventos del mapa (separa Ticketmaster de aprobados)
+  const handleEventosActualizados = (eventos) => {
+    // Separar eventos por tipo
+    const eventosTicket = eventos.filter(e => e.esTicketmaster || e.url?.includes('ticketmaster'));
+    const eventosLocal = eventos.filter(e => !e.esTicketmaster && !e.url?.includes('ticketmaster'));
+
+    setEventosTicketmaster(eventosTicket);
+    setEventosAprobados(eventosLocal);
+  };
+
+  // Combinar recursos locales cercanos, eventos de Ticketmaster, eventos aprobados y POIs
   const recursosYEventos = useMemo(() => {
     if (mostrarTodosEventos) {
-      // Mostrar todos: primero recursos cercanos, luego todos los eventos
-      return [...recursosCercanos, ...eventosTicketmaster];
+      // Mostrar todos: primero POIs, luego recursos cercanos, luego todos los eventos
+      return [...pois, ...recursosCercanos, ...eventosTicketmaster, ...eventosAprobados];
     }
 
-    // Vista compacta: intercalar 3 de cada uno
-    const eventosLimitados = eventosTicketmaster.slice(0, 3);
-    const recursosLimitados = recursosCercanos.slice(0, 3);
+    // Vista compacta: intercalar
+    const poisLimitados = pois.slice(0, 2);
+    const eventosTicket = eventosTicketmaster.slice(0, 2);
+    const eventosLocal = eventosAprobados.slice(0, 1);
+    const recursosLimitados = recursosCercanos.slice(0, 1);
 
     const combinados = [];
-    const maxLength = Math.max(eventosLimitados.length, recursosLimitados.length);
+    const maxLength = Math.max(poisLimitados.length, eventosTicket.length, eventosLocal.length, recursosLimitados.length);
 
     for (let i = 0; i < maxLength; i++) {
+      if (poisLimitados[i]) combinados.push(poisLimitados[i]);
       if (recursosLimitados[i]) combinados.push(recursosLimitados[i]);
-      if (eventosLimitados[i]) combinados.push(eventosLimitados[i]);
+      if (eventosTicket[i]) combinados.push(eventosTicket[i]);
+      if (eventosLocal[i]) combinados.push(eventosLocal[i]);
     }
 
     return combinados.slice(0, 6); // Máximo 6 items
-  }, [recursosCercanos, eventosTicketmaster, mostrarTodosEventos]);
+  }, [recursosCercanos, eventosTicketmaster, eventosAprobados, pois, mostrarTodosEventos]);
 
   const handleLogout = () => {
     if (confirm('¿Cerrar sesión?')) {
@@ -199,9 +300,24 @@ export default function PaginaInicio() {
 
   // Función para centrar el mapa en un evento cuando se hace clic en la lista
   const handleEventoClick = (item) => {
-    if (mapaRef.current && typeof item.lat === 'number' && typeof item.lng === 'number') {
-      // Centrar el mapa en la ubicación del evento
-      mapaRef.current.centerOnLocation(item.lat, item.lng);
+    if (!mapaRef.current) return;
+
+    // Obtener coordenadas (pueden ser lat/lng o latitud/longitud)
+    let lat, lng;
+
+    if (typeof item.lat === 'number' && typeof item.lng === 'number') {
+      // Recursos locales y eventos de Ticketmaster
+      lat = item.lat;
+      lng = item.lng;
+    } else if (item.latitud != null && item.longitud != null) {
+      // Eventos aprobados (pueden ser strings o números)
+      lat = typeof item.latitud === 'string' ? parseFloat(item.latitud) : item.latitud;
+      lng = typeof item.longitud === 'string' ? parseFloat(item.longitud) : item.longitud;
+    }
+
+    // Si tenemos coordenadas válidas, centrar el mapa
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      mapaRef.current.centerOnLocation(lat, lng);
 
       // Hacer scroll hacia el mapa
       if (mapaContainerRef.current) {
@@ -294,11 +410,11 @@ export default function PaginaInicio() {
             <button className="p-2 hover:bg-teal-400 rounded-full transition-colors">
               <IconoCampana className="h-6 w-6" />
             </button>
-            <button 
+            <button
               onClick={() => navigate('/perfil')}
               className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:shadow-lg transition-shadow"
             >
-              <IconoUsuario className="h-6 w-6 text-teal-600"/>
+              <IconoUsuario className="h-6 w-6 text-teal-600" />
             </button>
           </div>
         </div>
@@ -326,7 +442,7 @@ export default function PaginaInicio() {
         
         {usuario?.is_staff && (
           <button 
-            onClick={() => navigate('/admin/usuarios')}
+            onClick={() => navigate('/admin/menu')}
             className="bg-purple-500/90 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             👑 Admin
@@ -357,8 +473,11 @@ export default function PaginaInicio() {
               </div>
               <p className="font-bold text-2xl text-teal-900">{minutosHoy}</p>
               <p className="text-xs text-teal-600">minutos</p>
+              {kcalQuemadasHoy > 0 && (
+                <p className="text-xs text-orange-600 font-semibold mt-1">🔥 {kcalQuemadasHoy} kcal</p>
+              )}
             </div>
-            
+
             {/* Calorías */}
             <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl">
               <div className="flex items-center mb-2">
@@ -367,11 +486,11 @@ export default function PaginaInicio() {
                 </div>
                 <span className="ml-2 text-xs text-orange-700 font-medium">Calorías</span>
               </div>
-              <p className="font-bold text-2xl text-orange-900">{kcalHoy}</p>
+              <p className="font-bold text-2xl text-orange-900">{kcalConsumidasHoy}</p>
               <p className="text-xs text-orange-600">kcal</p>
             </div>
           </div>
-          
+
           {/* Barra de progreso */}
           <div className="mt-4">
             <div className="flex justify-between text-xs text-gray-600 mb-1">
@@ -379,13 +498,143 @@ export default function PaginaInicio() {
               <span>{Math.min(100, Math.round((minutosHoy / 30) * 100))}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-teal-400 to-teal-600 h-3 rounded-full transition-all duration-500" 
+              <div
+                className="bg-gradient-to-r from-teal-400 to-teal-600 h-3 rounded-full transition-all duration-500"
                 style={{width: `${Math.min(100, (minutosHoy / 30) * 100)}%`}}
               ></div>
             </div>
           </div>
         </div>
+
+        {/* Meta Calórica */}
+        {metaActiva ? (
+          <div className="bg-white p-5 rounded-2xl shadow-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-xl text-gray-800">Tu Meta de Peso</h3>
+              <button
+                onClick={() => navigate('/progreso-meta')}
+                className="text-xs text-purple-600 font-medium hover:text-purple-700"
+              >
+                Ver detalles →
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl mb-3">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs text-purple-700 mb-1">Meta Calórica Diaria</p>
+                  <p className="font-bold text-3xl text-purple-900">
+                    {Math.round(metaActiva.meta_calorica_diaria)}
+                  </p>
+                  <p className="text-xs text-purple-600">kcal</p>
+                </div>
+                <div className="text-right">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                    metaActiva.tipo_meta === "perdida"
+                      ? "bg-blue-500 text-white"
+                      : "bg-green-500 text-white"
+                  }`}>
+                    {metaActiva.tipo_meta === "perdida" ? "📉 Pérdida" : "📈 Ganancia"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/50 p-2 rounded-lg">
+                  <p className="text-xs text-purple-600">Actual</p>
+                  <p className="font-bold text-purple-900">{metaActiva.peso_actual} kg</p>
+                </div>
+                <div className="bg-white/50 p-2 rounded-lg">
+                  <p className="text-xs text-purple-600">Objetivo</p>
+                  <p className="font-bold text-purple-900">{metaActiva.peso_objetivo} kg</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Progreso de calorías del día vs meta */}
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Calorías netas hoy</span>
+                <span>{Math.round(kcalNetasHoy)} / {Math.round(metaActiva.meta_calorica_diaria)} kcal</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    (kcalNetasHoy / metaActiva.meta_calorica_diaria) * 100 > 100
+                      ? 'bg-gradient-to-r from-red-400 to-red-600'
+                      : 'bg-gradient-to-r from-purple-400 to-purple-600'
+                  }`}
+                  style={{width: `${Math.min(100, (kcalNetasHoy / metaActiva.meta_calorica_diaria) * 100)}%`}}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {kcalNetasHoy < metaActiva.meta_calorica_diaria
+                  ? `Te quedan ${Math.round(metaActiva.meta_calorica_diaria - kcalNetasHoy)} kcal disponibles`
+                  : `Has excedido tu meta por ${Math.round(kcalNetasHoy - metaActiva.meta_calorica_diaria)} kcal`
+                }
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-gray-50 p-3 rounded-lg">
+              <span className="text-gray-600">Días restantes</span>
+              <span className="font-bold text-purple-700">{metaActiva.dias_restantes} días</span>
+            </div>
+
+            {/* Análisis Acumulativo */}
+            {analisisAcumulativo && (
+              <div className={`mt-3 p-3 rounded-lg border ${
+                analisisAcumulativo.estaPorEncima
+                  ? 'bg-red-50 border-red-300'
+                  : 'bg-green-50 border-green-300'
+              }`}>
+                <div className="flex items-start">
+                  <span className="text-xl mr-2">
+                    {analisisAcumulativo.estaPorEncima ? '⚠️' : '✅'}
+                  </span>
+                  <div className="flex-1">
+                    <p className={`text-xs font-semibold mb-1 ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'
+                    }`}>
+                      {analisisAcumulativo.estaPorEncima
+                        ? 'Estás consumiendo más calorías de las esperadas'
+                        : 'Vas bien con tu consumo calórico'}
+                    </p>
+                    <p className={`text-xs ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-700' : 'text-green-700'
+                    }`}>
+                      En los últimos <strong>{analisisAcumulativo.diasTranscurridos} días</strong> has consumido{' '}
+                      <strong>{analisisAcumulativo.totalNetasAcumulado.toLocaleString()} kcal</strong>, pero deberías haber consumido{' '}
+                      <strong>{analisisAcumulativo.deberiaHaberConsumido.toLocaleString()} kcal</strong>.
+                    </p>
+                    <p className={`text-xs font-semibold mt-1 ${
+                      analisisAcumulativo.estaPorEncima ? 'text-red-800' : 'text-green-800'
+                    }`}>
+                      Estás <strong>{Math.abs(analisisAcumulativo.diferencia).toLocaleString()} kcal {analisisAcumulativo.estaPorEncima ? 'por encima' : 'por debajo'}</strong> de lo esperado.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-2xl shadow-md border border-purple-200">
+            <div className="text-center">
+              <div className="text-4xl mb-3">🎯</div>
+              <h3 className="font-bold text-lg text-purple-900 mb-2">
+                Establece tu Meta de Peso
+              </h3>
+              <p className="text-sm text-purple-700 mb-4">
+                Configura tu objetivo y recibe un plan calórico personalizado
+              </p>
+              <button
+                onClick={() => navigate('/configurar-meta')}
+                className="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Configurar Meta
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* IMC (Índice de Masa Corporal) */}
         {imc && categoriaIMC && (
@@ -461,21 +710,102 @@ export default function PaginaInicio() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-xl text-gray-800">Recursos y Eventos</h3>
             <span className="text-xs text-teal-600 font-medium">
-              {recursosCercanos.length + eventosTicketmaster.length} cercanos
+              {recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length} cercanos
             </span>
           </div>
           <div ref={mapaContainerRef} className="rounded-xl overflow-hidden mb-3">
             <MapaRecursos
               ref={mapaRef}
               recursos={recursosCercanos}
+              pois={pois}
               alto={220}
-              onEventosActualizados={setEventosTicketmaster}
+              onEventosActualizados={handleEventosActualizados}
               onUbicacionActualizada={setPosUsuario}
             />
           </div>
+
+          {/* Mensaje educativo sobre POIs personalizados */}
+          {metaActiva && pois.length > 0 && (
+            <div className={`p-4 rounded-lg mb-4 ${
+              metaActiva.tipo_meta === 'perdida' ? 'bg-blue-50 border border-blue-200' :
+              metaActiva.tipo_meta === 'ganancia' ? 'bg-green-50 border border-green-200' :
+              'bg-gray-50 border border-gray-200'
+            }`}>
+              <div className="flex items-start">
+                <span className="text-2xl mr-3">
+                  {metaActiva.tipo_meta === 'perdida' ? '🏋️' :
+                   metaActiva.tipo_meta === 'ganancia' ? '🍽️' : '⚖️'}
+                </span>
+                <div>
+                  <h4 className={`font-semibold text-sm mb-1 ${
+                    metaActiva.tipo_meta === 'perdida' ? 'text-blue-900' :
+                    metaActiva.tipo_meta === 'ganancia' ? 'text-green-900' :
+                    'text-gray-900'
+                  }`}>
+                    {metaActiva.tipo_meta === 'perdida' ? 'Lugares para Actividad Física' :
+                     metaActiva.tipo_meta === 'ganancia' ? 'Lugares para Alimentación' :
+                     'Lugares para Balance'}
+                  </h4>
+                  <p className={`text-xs ${
+                    metaActiva.tipo_meta === 'perdida' ? 'text-blue-800' :
+                    metaActiva.tipo_meta === 'ganancia' ? 'text-green-800' :
+                    'text-gray-700'
+                  }`}>
+                    {metaActiva.tipo_meta === 'perdida' ?
+                      'Te mostramos gimnasios, parques y centros deportivos para ayudarte a aumentar tu actividad física y alcanzar tu meta de pérdida de peso.' :
+                     metaActiva.tipo_meta === 'ganancia' ?
+                      'Te mostramos supermercados, ferias y restaurantes para ayudarte a aumentar tu ingesta calórica de forma saludable y alcanzar tu meta de ganancia de peso.' :
+                      'Te mostramos una variedad de lugares para mantener un estilo de vida balanceado.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ul className="space-y-2">
             {recursosYEventos.map((item, i) => (
-              item.esTicketmaster ? (
+              item.icono ? (
+                // POI personalizado
+                <li
+                  key={`poi-${item.id}-${i}`}
+                  onClick={() => handleEventoClick(item)}
+                  className="flex items-start p-3 hover:bg-purple-50 rounded-lg transition-colors border-l-4 border-purple-500 cursor-pointer"
+                >
+                  <span className="text-2xl mr-2">
+                    {item.icono === 'gym' ? '🏋️' :
+                     item.icono === 'sports' ? '⚽' :
+                     item.icono === 'park' ? '🌳' :
+                     item.icono === 'bike' ? '🚴' :
+                     item.icono === 'market' ? '🛒' :
+                     item.icono === 'supermarket' ? '🏪' :
+                     item.icono === 'restaurant' ? '🍽️' :
+                     item.icono === 'bakery' ? '🥖' :
+                     item.icono === 'shop' ? '🏬' :
+                     '📍'}
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <p className="font-semibold text-gray-800 text-sm flex-1">{item.nombre}</p>
+                      <span className="text-xs px-2 py-1 rounded-full ml-2 bg-purple-100 text-purple-700">
+                        {item.tipo}
+                      </span>
+                    </div>
+                    {item.direccion && (
+                      <p className="text-xs text-gray-600 mb-1">📍 {item.direccion}</p>
+                    )}
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                        Recomendado para ti
+                      </span>
+                      {item.prioridad && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          ⭐ Prioridad: {item.prioridad}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ) : item.esTicketmaster ? (
                 // Evento de Ticketmaster
                 <li
                   key={`tm-${item.id}`}
@@ -492,10 +822,10 @@ export default function PaginaInicio() {
                         item.categoria === 'Arts & Theatre' ? 'bg-purple-100 text-purple-700' :
                         'bg-orange-100 text-orange-700'
                       }`}>
-                        {item.categoria === 'Sports' ? '🏃 Sports' :
-                         item.categoria === 'Music' ? '🎵 Music' :
-                         item.categoria === 'Arts & Theatre' ? '🎭 Arts' :
-                         '🎪 Community'}
+                        {item.categoria === 'Sports' ? '🏃 Deportes' :
+                         item.categoria === 'Music' ? '🎵 Música' :
+                         item.categoria === 'Arts & Theatre' ? '🎭 Arte y Teatro' :
+                         '🎪 Eventos'}
                       </span>
                     </div>
                     <p className="text-xs text-gray-600 mb-1">
@@ -509,8 +839,49 @@ export default function PaginaInicio() {
                     </div>
                   </div>
                 </li>
+              ) : item.nombre_evento ? (
+                // Evento aprobado local
+                <li
+                  key={`evt-${item.id}`}
+                  onClick={() => handleEventoClick(item)}
+                  className="flex items-start p-3 hover:bg-green-50 rounded-lg transition-colors border-l-4 border-green-500 cursor-pointer"
+                >
+                  <span className="text-2xl mr-2">🎉</span>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <p className="font-semibold text-gray-800 text-sm flex-1">{item.nombre_evento}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
+                        item.categoria === 'deportivo' ? 'bg-blue-100 text-blue-700' :
+                        item.categoria === 'cultural' ? 'bg-purple-100 text-purple-700' :
+                        item.categoria === 'salud' ? 'bg-pink-100 text-pink-700' :
+                        item.categoria === 'recreativo' ? 'bg-yellow-100 text-yellow-700' :
+                        item.categoria === 'educativo' ? 'bg-indigo-100 text-indigo-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {item.categoria === 'deportivo' ? '🏃 Deportivo' :
+                         item.categoria === 'cultural' ? '🎭 Cultural' :
+                         item.categoria === 'salud' ? '❤️ Salud' :
+                         item.categoria === 'recreativo' ? '🎪 Recreativo' :
+                         item.categoria === 'educativo' ? '📚 Educativo' :
+                         '📋 Otro'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1">
+                      📅 {new Date(item.fecha_inicio).toLocaleDateString('es-CL')}
+                    </p>
+                    <p className="text-xs text-gray-500">📍 {item.ciudad}</p>
+                    <div className="flex items-center mt-1 gap-2">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">
+                        Evento Local
+                      </span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        {item.tipo_entrada === 'gratuito' ? '💰 Gratis' : '💵 Pago'}
+                      </span>
+                    </div>
+                  </div>
+                </li>
               ) : (
-                // Recurso local
+                // Recurso local (ciclovía, parque, etc.)
                 <li
                   key={`rec-${i}`}
                   onClick={() => handleEventoClick(item)}
@@ -532,7 +903,7 @@ export default function PaginaInicio() {
           </ul>
 
           {/* Botón para expandir/colapsar */}
-          {(recursosCercanos.length + eventosTicketmaster.length > 6) && (
+          {(recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length > 6) && (
             <div className="mt-3 text-center">
               <button
                 onClick={() => setMostrarTodosEventos(!mostrarTodosEventos)}
@@ -540,7 +911,7 @@ export default function PaginaInicio() {
               >
                 {mostrarTodosEventos
                   ? '← Ver menos'
-                  : `Ver todos (${recursosCercanos.length + eventosTicketmaster.length}) →`
+                  : `Ver todos (${recursosCercanos.length + eventosTicketmaster.length + eventosAprobados.length + pois.length}) →`
                 }
               </button>
             </div>
@@ -571,6 +942,9 @@ export default function PaginaInicio() {
                   <div className="text-right">
                     <p className="font-bold text-teal-600">{a.duracion_min}</p>
                     <p className="text-xs text-gray-500">min</p>
+                    {a.calorias && (
+                      <p className="text-xs text-orange-600 font-semibold mt-1">🔥 {a.calorias} kcal</p>
+                    )}
                   </div>
                 </div>
               ))

@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/admin/', include('users.admin_urls')),
     path('api/eventos/', include('eventos.urls')),
+    path('api/metas/', include('metas.urls')),
 ]
 
 # Servir archivos media en desarrollo

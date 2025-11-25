@@ -13,7 +13,6 @@ class UserProfile(models.Model):
     peso = models.FloatField(null=True, blank=True)
     altura = models.FloatField(null=True, blank=True)
     sexo = models.CharField(max_length=1, choices=SEXO_CHOICES, null=True, blank=True)
-    foto = models.ImageField(upload_to="profiles/", null=True, blank=True)
 
     def __str__(self):
         return self.user.username

@@ -16,28 +16,31 @@ import ComidaNueva from './paginas/ComidaNueva';
 import Perfil from './paginas/Perfil';
 import PaginaOfertas from './paginas/PaginaOfertas';
 import MapaRecursos from './componentes/MapaRecursos';
+import ConfigurarMeta from './paginas/ConfigurarMeta';
+import ProgresoMeta from './paginas/ProgresoMeta';
 
 // Admin pages
 import AdminUsuarios from './paginas/AdminUsuarios';
 import EditarUsuario from './paginas/EditarUsuario';
 import AdminEventos from './paginas/AdminEventos';
+import PaginaAdminMenu from './paginas/PaginaAdminMenu';
 
-// Event request page (public)
+// Event request pages (public)
 import SolicitarEvento from './paginas/SolicitarEvento';
+import ConsultarSolicitud from './paginas/ConsultarSolicitud';
 
 // Layout con navegación
 function LayoutConNavegacion() {
   const location = useLocation();
-  const { navigate } = useAuth();
   
   // Determinar qué botón está activo basado en la ruta actual
   const getActiveButton = (path) => {
     const currentPath = location.pathname;
     if (path === '/actividad') {
-      return currentPath === '/actividad' || currentPath === '/actividad/nueva';
+      return currentPath === '/actividad' || currentPath === '/actividad/nueva' || currentPath.startsWith('/actividad/editar/');
     }
     if (path === '/comida') {
-      return currentPath === '/comida' || currentPath === '/comida/nueva';
+      return currentPath === '/comida' || currentPath === '/comida/nueva' || currentPath.startsWith('/comida/editar/');
     }
     return currentPath === path;
   };
@@ -161,6 +164,7 @@ function ProtectedRoute({ children, requireAdmin = false, allowIncompleteProfile
     return <Navigate to="/completar-perfil" replace />;
   }
 
+
   if (requireAdmin && !usuario?.is_staff) {
     return <Navigate to="/inicio" replace />;
   }
@@ -219,8 +223,9 @@ export default function App() {
         </PublicRoute>
       } />
 
-      {/* Ruta pública para solicitar eventos - No requiere autenticación */}
+      {/* Rutas públicas para eventos - No requieren autenticación */}
       <Route path="/solicitar-evento" element={<SolicitarEvento />} />
+      <Route path="/consultar-solicitud" element={<ConsultarSolicitud />} />
 
       {/* Ruta para completar perfil - Requiere autenticación pero permite perfil incompleto */}
       <Route path="/completar-perfil" element={
@@ -238,14 +243,24 @@ export default function App() {
         <Route path="/inicio" element={<PaginaInicio />} />
         <Route path="/actividad" element={<ActividadLista />} />
         <Route path="/actividad/nueva" element={<ActividadNueva />} />
+        <Route path="/actividad/editar/:id" element={<ActividadNueva />} />
         <Route path="/comida" element={<ComidaLista />} />
         <Route path="/comida/nueva" element={<ComidaNueva />} />
+        <Route path="/comida/editar/:id" element={<ComidaNueva />} />
         <Route path="/ofertas" element={<PaginaOfertas />} />
         <Route path="/mapa" element={<MapaRecursos />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="/configurar-meta" element={<ConfigurarMeta />} />
+        <Route path="/progreso-meta" element={<ProgresoMeta />} />
       </Route>
       
       {/* Admin routes */}
+      <Route path="/admin/menu" element={
+        <ProtectedRoute requireAdmin={true}>
+          <PaginaAdminMenu />
+        </ProtectedRoute>
+      } />
+
       <Route path="/admin/usuarios" element={
         <ProtectedRoute requireAdmin={true}>
           <AdminUsuarios />

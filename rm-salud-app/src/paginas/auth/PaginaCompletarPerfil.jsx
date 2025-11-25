@@ -65,6 +65,8 @@ const PaginaCompletarPerfil = () => {
 
     try {
       setCargando(true);
+
+      // Actualizar el perfil
       await api.patch('/api/auth/perfil', {
         edad: edadNum,
         peso: pesoNum,
@@ -75,12 +77,11 @@ const PaginaCompletarPerfil = () => {
       // Recargar los datos del usuario para actualizar el estado
       await recargarUsuario();
 
-      // Redirigir al inicio después de completar el perfil
-      navigate('/inicio');
+      // Forzar recarga de la página para asegurar que el estado se actualice
+      window.location.href = '/inicio';
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
       setError(err.response?.data?.message || 'Error al actualizar el perfil');
-    } finally {
       setCargando(false);
     }
   };

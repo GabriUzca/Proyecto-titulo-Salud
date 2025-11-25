@@ -14,7 +14,7 @@ export const useAuth = () => {
       const { data } = await authApi.me();
       setUsuario(data);
       setEstaLogueado(true);
-    } catch {
+    } catch (error) {
       setEstaLogueado(false);
       setUsuario(null);
     }
